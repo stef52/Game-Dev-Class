@@ -295,5 +295,14 @@
     <None Include="..\Shaders\ColoringShaders\WilfLightingLibrary.all">
       <Filter>Shaders\light</Filter>
     </None>
+    <None Include="..\Shaders\hpcv-water-tile.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\Shaders\hpcv-water-tile.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\Shaders\wilf-lalonde-water-tile.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

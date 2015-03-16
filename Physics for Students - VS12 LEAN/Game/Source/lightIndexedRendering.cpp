@@ -27,6 +27,8 @@ const bool SHOULD_SORT_LIGHTS = true;
 
 extern char globalLineInsertionData [256]; //Initialized below... but defined in shaders.cpp
 
+float time = 1.0f;
+
 void buildGlobalLineInsertion () {
 	#define SAMPLE_JUNK 3
 	char *globalLineInsertion = &globalLineInsertionData [0];
@@ -55,12 +57,14 @@ Shader *drawWorldWithAllLightsShader = NULL;
 Shader *drawLightFuzzBallShader = NULL;
 Shader *drawZPrepassShader = NULL;
 Shader *verificationShader = NULL;
+Shader *waterShader = NULL;
 #if (CAPTURE_WORLD_POSITION_CS)
 Texture *worldPositionTexture = NULL;
 Shader *drawPositionAndZPrepassShader = NULL;
 #endif //CAPTURE_WORLD_POSITION_CS
 
 Texture *allLightColors = NULL, *allLightPositions = NULL, *fuzzBall = NULL;
+Texture *flowMap = NULL, *chasmFlowMap = NULL, *chasmColorMap = NULL, *chasmNormalMap = NULL;
 
 struct LightData {
 	bool enabled; float r, g, b; float x, y, z, scale; Point cameraSpacePosition;
@@ -366,6 +370,35 @@ void drawLitWorld (World *world) {
 	ENABLE_SHADERS;
 }
 
+void drawWater() {
+	waterShader->activate();
+
+	time += DT;
+
+	waterShader->setUniformMatrix4fv("osg_ViewMatrixInverse", &camera->cameraMatrix.m11);
+
+	glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, chasmNormalMap->textureHandle);
+	glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, chasmColorMap->textureHandle);
+	glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, chasmFlowMap->textureHandle);
+
+	waterShader->setUniformTexture("normalMap", 0);
+	waterShader->setUniformTexture("colorMap", 1);
+	waterShader->setUniformTexture("flowMap", 2);
+	waterShader->setUniformTexture("cubeMap", 3);
+
+	glPushMatrix();
+	glTranslated(-70.0, -5.0, 0.0);
+	glRotatef(270.0f, 1.0f, 0.0f, 0.0f);
+	glScalef(200.0f, 200.0f, 200.0f);
+	Transformation modelView; glGetMatrixf(GL_MODELVIEW_MATRIX, modelView);
+	Transformation projection; glGetMatrixf(GL_PROJECTION_MATRIX, projection);
+	Transformation modelViewProjection = modelView * projection;
+
+	unitSolidFace->draw();
+	glPopMatrix();
+}
+
+
 void drawAllLightFuzzBalls () {
 	//Draw each light as a sprite without z-writing...
 
@@ -583,18 +616,23 @@ void drawColoredLights(World *world) {
 	//Perform Pass5. Drawing fuzz balls for the lights so you can additionally see them (not just their effects).
 	drawAllLightFuzzBalls();
 
+	drawWater();
+
 	glDepthMask(GL_TRUE); //Restore to our default of depth writing...
 
 	//verifyThatLightIndicesEncodingAndDecodingWorks ();
 }
 
 void setupColoredLights () {
+
+
 	buildGlobalLineInsertion (); //This only needs to be done once...
 	drawLightModelShader = new Shader ("ColoringShaders\\drawLightModel"); 
 	drawWorldWithAllLightsShader = new Shader ("ColoringShaders\\drawWorldWithAllLights"); 
 	drawLightFuzzBallShader = new Shader ("ColoringShaders\\drawLightFuzzBall"); 
 	drawZPrepassShader = new Shader ("ColoringShaders\\drawZPrepass");
 	verificationShader = new Shader ("ColoringShaders\\verifyLightIndex");
+	waterShader = new Shader("hpcv-water-tile");
 	#if (CAPTURE_WORLD_POSITION_CS)
 	drawPositionAndZPrepassShader = new Shader("ColoringShaders\\drawPositionAndZPrepass");
 	#endif //CAPTURE_WORLD_POSITION_CS
@@ -604,6 +642,7 @@ void setupColoredLights () {
 	drawLightFuzzBallShader->load ();
 	drawZPrepassShader->load ();
 	verificationShader->load ();
+	waterShader->load();
 	#if (CAPTURE_WORLD_POSITION_CS)
 	drawPositionAndZPrepassShader->load();
 	#endif //CAPTURE_WORLD_POSITION_CS
@@ -611,6 +650,12 @@ void setupColoredLights () {
 	allLightColors = new Texture (256, 1, RGBAType);
 	allLightPositions = new Texture (256, 1, FloatRGBAType); //FORMAT: GL_RGBA32F
 	fuzzBall = Texture::readTexture ("..\\textures\\fuzzBall.tga"); if (fuzzBall != NULL) fuzzBall->load (false, true);
+
+	flowMap = Texture::readTexture("..\\textres\\Flow\flow.tga"); if (flowMap != NULL) flowMap->load(false, true);
+	chasmFlowMap = Texture::readTexture("..\\textures\\Flow\\flow.tga"); if (chasmFlowMap != NULL) chasmFlowMap->load(false, true);
+	chasmColorMap = Texture::readTexture("..\\textures\\Flow\\flowBase.tga"); if (chasmColorMap != NULL) chasmColorMap->load(false, true);
+	chasmNormalMap = Texture::readTexture("..\\textures\\Flow\\normal.bmp"); if (chasmNormalMap != NULL) chasmNormalMap->load(false, false);
+
 
 	buildRawFrameBuffers (1, &lightIndexedFrameBufferID);
 	buildRawTextures (1, &lightIndexedColorBufferID, GL_TEXTURE_2D, GL_RGBA8, GL_RGBA, RESOLUTION, RESOLUTION, GL_LINEAR); 
@@ -648,6 +693,7 @@ void wrapupColoredLights () {
 	drawLightFuzzBallShader->unload (); delete drawLightFuzzBallShader;
 	drawZPrepassShader->unload (); delete drawZPrepassShader;
 	verificationShader->unload (); delete verificationShader;
+	waterShader->unload(); delete waterShader;
 	#if (CAPTURE_WORLD_POSITION_CS)
 	drawPositionAndZPrepassShader->unload(); delete drawPositionAndZPrepassShader;
 	#endif //CAPTURE_WORLD_POSITION_CS

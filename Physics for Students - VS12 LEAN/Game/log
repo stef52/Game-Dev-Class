@@ -3,17 +3,16 @@
 Starting game...
 ARB vertex buffer object extension IS supported.
 ARB shader objects extension IS supported.
-Creating physics system 3fbb490 and manager 1e8afb0.
-Create physics sphere 402b3f0.
+Creating physics system 44de390 and manager 44d0168.
+Create physics sphere 4506840.
 Create shader program 3 for "..\Shaders\ColoringShaders\drawLightModel.vert" and "..\Shaders\ColoringShaders\drawLightModel.frag".
 Create shader program 6 for "..\Shaders\ColoringShaders\drawWorldWithAllLights.vert" and "..\Shaders\ColoringShaders\drawWorldWithAllLights.frag".
 Create shader program 9 for "..\Shaders\ColoringShaders\drawLightFuzzBall.vert" and "..\Shaders\ColoringShaders\drawLightFuzzBall.frag".
 Create shader program 12 for "..\Shaders\ColoringShaders\drawZPrepass.vert" and "..\Shaders\ColoringShaders\drawZPrepass.frag".
 Create shader program 15 for "..\Shaders\ColoringShaders\verifyLightIndex.vert" and "..\Shaders\ColoringShaders\verifyLightIndex.frag".
-Create shader program 18 for "..\Shaders\ColoringShaders\drawPositionAndZPrepass.vert" and "..\Shaders\ColoringShaders\drawPositionAndZPrepass.frag".
+Create shader program 18 for "..\Shaders\hpcv-water-tile.vert" and "..\Shaders\hpcv-water-tile.frag".
 Build raw texture 800x800.
 Build raw depth buffer 800x800.
-Build raw texture 800x800.
 
 Light data (256 entries)
    {0.00,0.00,0.00,  0.00000,0.00000,0.00000,  0.00},
@@ -282,6 +281,17 @@ ARB frame buffer extension IS supported
 Running OpenGL version 3.3.0, shader version 3.30 NVIDIA via Cg compiler.
 with 4 texture units; 32 for shaders; 4096 uniforms...
 Viewport size 800x800.
-Deleting physics system 3fbb490 and manager 1e8afb0.
+Create shader program 21 for "..\Shaders\defaultLighting.vert" and "..\Shaders\defaultLighting.frag".
+ShaderManager::addShader ("defaultLighting") at index 0.
+Import terrain shader -1.
+Create physics scene cfa33d0.
+Reset physicsSystem 44de390...
+Create physics terrain 10153990 AT [-172.00,-12.50,-103.00]...
+PHYSICS ADD TO SCENE 10153990...
+Create physics mesh with 7506 vertices and 11460 indices; i.e., 463fe50...
+PHYSICS ADD TO SCENE 463fe50...
+Player reset to [-1.63,-3.66,9.75]
+DRAW LIT WORLD with shaders DISABLED.
+Deleting physics system 44de390 and manager 44d0168.
 Ending game...
 

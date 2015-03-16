@@ -13,7 +13,7 @@
 #define EXPERIMENT4 4 //Indexed light drawing with lights as fuzz balls WITH POSITION G-BUFFER.
 #define EXPERIMENT5 5 //Indexed light drawing with POSITION G-BUFFER and lights drawing backs.
 
-#define EXPERIMENT EXPERIMENT3
+#define EXPERIMENT EXPERIMENT0
 
 #if (EXPERIMENT == EXPERIMENT0)
 #define drawingChoice NormalOnly

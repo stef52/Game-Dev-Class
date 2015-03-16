@@ -214,9 +214,12 @@
     <None Include="..\Shaders\ColoringShaders\verifyLightIndex.vert" />
     <None Include="..\Shaders\ColoringShaders\WilfLightIndexDrawingLibrary.all" />
     <None Include="..\Shaders\ColoringShaders\WilfLightingLibrary.all" />
+    <None Include="..\Shaders\hpcv-water-tile.frag" />
+    <None Include="..\Shaders\hpcv-water-tile.vert" />
     <None Include="..\Shaders\ShadowShaders\Extensions you might want to add to WilfLightingLibrary.all" />
     <None Include="..\Shaders\ShadowShaders\shadowDrawWhatLightSees.frag" />
     <None Include="..\Shaders\ShadowShaders\shadowDrawWhatLightSees.vert" />
+    <None Include="..\Shaders\wilf-lalonde-water-tile.frag" />
     <None Include="..\Shaders\WilfLightingLibrary.all" />
     <None Include="Source\includes.all" />
     <None Include="..\Worlds\castle4.wrl" />
