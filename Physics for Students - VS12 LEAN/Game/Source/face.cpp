@@ -1,0 +1,115 @@
+
+//*****************************************************************************************//
+//                                      Includes                                           //
+//*****************************************************************************************//
+
+#include "includes.all"
+
+//*****************************************************************************************//
+//                                        Faces                                            //
+//*****************************************************************************************//
+
+GLfloat Face::defaultColor [] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+Face::Face () : points (NULL), pointsSize (0), texture (NULL) { 
+	color = defaultColor;
+}
+
+Face::~Face () {
+
+	// Get rid of the reference
+	texture = NULL;
+	for (long i = 0; i < pointsSize; i++) {
+		delete points [i];
+	}
+	delete [] points;
+};
+
+void Face::tick () {
+	//This could change textures dynamically or change texture coordinates or do nothing.
+}
+
+void Face::draw () {
+	 //Do this before drawing a polygon.
+	texture->activate ();
+
+	//Want a colour
+	glColor4fv (color);	
+
+	glBegin (GL_POLYGON);
+		for (long pointIndex = 0; pointIndex < pointsSize; pointIndex++) {
+			GamePoint &point = *(points [pointIndex]);
+			//Recall: our shaders describe vertices with attributes 0, 1, 2 as "vertex", "textureCoordinate", "normal".
+			//Note: the first parameter below in the glVertexAttrib* function is one of the indices 0, 1, or 2 above...
+
+			glVertexAttrib3f (2, point.nx, point.ny, point.nz);
+			glVertexAttrib2f (1, point.tx, point.ty);
+			glVertexAttrib3f (0, point.x, point.y, point.z);
+		}
+	glEnd ();
+	glColor4d (1.0, 1.0, 1.0, 1.0); //White...
+}
+
+void Face::log () {
+	::log ("\n\t\tTexture \"%s\":", texture == NULL ? "NULL" : texture->textureName);
+	for (long pointIndex = 0; pointIndex < pointsSize; pointIndex++) {		
+		GamePoint &point = *(points [pointIndex]);
+		//Access point's x, y, z, tx, ty
+		::log ("\n\t\t%d: point [%3.2f,%3.2f,%3.2f] texture: [%3.2f,%3.2f].",
+			pointIndex, point.x, point.y, point.z, point.tx, point.ty);
+	}
+}
+
+void Face::import (::ifstream &input, World *world) {
+	char line [256]; //Working variable...
+
+	//Input the header.
+	SKIP_TO_COLON;
+	SKIP_TO_SEMICOLON; long faceIndex = atoi (line); //Only useful for debugging or browsing.
+
+	//Input the properties (either the texture property or nothing at all; not actually storing in a dictionary)...
+	SKIP_TO_COLON;
+	SKIP_TO_SEMICOLON; long propertiesSize = atoi (line); CLEAR_THE_LINE;
+	for (long propertiesIndex = 0; propertiesIndex < propertiesSize; propertiesIndex++) {
+		SKIP_TO_ENDLINE;
+		char key [256]; char value [256]; value [0] = '\0';
+		sscanf (line, " \"%[^\"]\" => \"%[^\"]\"", key, value);
+		texture = world->textureManager.textureAtIndex (atoi (value));
+		break; //propertiesSize should be 1 but just in case it's not...
+	}
+
+	//Input the texture.
+	//Only if this code is in the game rather than the builder...
+	//texture = textureName == NULL ? NULL : world->textureFor (textureName);
+
+	//Input the points.
+	SKIP_TO_COLON;
+	SKIP_TO_SEMICOLON; pointsSize = atoi (line); CLEAR_THE_LINE;
+	points = new GamePoint* [pointsSize];
+	for (long pointIndex = 0; pointIndex < pointsSize; pointIndex++) {
+		GamePoint *point = new GamePoint;
+		SKIP_TO_COMMA; point->x = atof (line);
+		SKIP_TO_COMMA; point->y = atof (line);
+		SKIP_TO_COMMA; point->z = atof (line);
+		SKIP_TO_COMMA; point->nx = atof (line);
+		SKIP_TO_COMMA; point->ny = atof (line);
+		SKIP_TO_COMMA; point->nz = atof (line);
+		SKIP_TO_COMMA; point->tx = atof (line);
+		SKIP_TO_ENDLINE; point->ty = atof (line);
+		points [pointIndex] = point;
+	}
+
+	//Builder should have ensured the normals were correct... But...
+	const bool recomputeNormals = false; 
+	if (recomputeNormals) {
+		Point p0 = points [0]->asPoint ();
+		Point p1 = points [1]->asPoint ();
+		Point p2 = points [2]->asPoint ();
+		Point normal = p0.pointCross (p1, p2).normalized ();
+
+		for (long pointIndex = 0; pointIndex < pointsSize; pointIndex++) {
+			GamePoint *point = points [pointIndex];
+			point->nx = normal.x; point->ny = normal.y; point->nz = normal.z;
+		}
+	}
+}

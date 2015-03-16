@@ -1,0 +1,20 @@
+
+//*****************************************************************************************//
+//                                      Includes                                           //
+//*****************************************************************************************//
+
+#include "includes.all"
+
+//*****************************************************************************************//
+//                                   Physics Object                                        //
+//*****************************************************************************************//
+
+void Cube::playerThrowCube () {
+	if (game->world == NULL || physicsManager->scene == NULL) return;
+	Vector aheadAndUp = camera->raisedHeading ();
+	float speed = 10; //meters per second...
+	::log ("\nThrow cube heading "); aheadAndUp.log (); 
+	Cube *cube = new Cube (camera->position (), aheadAndUp * speed, 0.5, 0.5, 0.5, 1.0); //width, height, depth, mass
+	physicsManager->add (cube->physicsCube);
+	game->world->addDynamicObject (cube); //The world now owns the cube and will tick, draw, and delete it.
+}

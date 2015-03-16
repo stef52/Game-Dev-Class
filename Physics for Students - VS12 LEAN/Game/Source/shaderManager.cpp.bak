@@ -1,0 +1,139 @@
+//*****************************************************************************************//
+//                                      Includes                                           //
+//*****************************************************************************************//
+
+#include "includes.all"
+
+//*****************************************************************************************//
+//                                    ShaderManager                                        //
+//*****************************************************************************************//
+
+ShaderManager *shaderManager = NULL;
+long defaultShaderIndex = -1;
+
+void ShaderManager::setup () { 		
+	#if (USING_NEW_OPENGL)
+		//Nothing more to do...
+	#else
+		setupOpenGLExtensions ();
+	#endif
+	shaderManager = new ShaderManager ();
+}		
+
+ShaderManager::~ShaderManager () {
+	removeShaders ();
+}
+
+void ShaderManager::removeShaders () {
+	while (!shaders.empty ()) {
+		Shader* shader = shaders.back ();
+		shader->unload ();
+		delete shader;
+		shaders.pop_back ();
+	}	
+}
+
+long ShaderManager::addShader (const char *name) {
+	const bool logging = true;
+	Shader* shader = new Shader (name); 
+	shader->load ();
+	shaders.push_back (shader);
+	if (logging) ::log ("\nShaderManager::addShader (\"%s\") at index %d.", name, shaders.size () - 1); 
+	return shaders.size () - 1;// Start list at zero
+}
+
+void ShaderManager::tick () {
+	xAngle += xRotateRate * (float) DT;
+	yAngle += yRotateRate * (float) DT;
+	zAngle += zRotateRate * (float) DT;
+
+	xAngle = fmodf (xAngle, 360.0f); 
+	yAngle = fmodf (yAngle, 360.0f); 
+	zAngle = fmodf (zAngle, 360.0f); 
+}
+
+
+void ShaderManager::startShader (long shaderIndex) {
+	if (shaderIndex < 0 || shaderIndex >= shaders.size ()) {
+		// Invalid shader ref normal for non shader objects
+		return;
+	}
+
+	Shader* shader = shaders [shaderIndex];
+	if (shader == NULL) {
+		// Shader must be broken check log to see why
+		return;
+	}
+
+	// All shaders use a subset of the same parameters
+	// All parameters are created and passed to the shader which ignores uneeded ones
+	glColor4d (1.0, 1.0, 1.0, 1.0); //White...
+	shader->activate ();
+
+	// All objects use the same material currently
+//	shader->setUniform4f ("material_ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+	shader->setUniform4f ("material_ambient", 0.4f, 0.4f, 0.4f, 1.0f); //WILF: Excessive amount so we can see since there are no interior lights...
+	shader->setUniform4f ("material_diffuse", 1.0f, 1.0f, 1.0f, 1.0f);
+	shader->setUniform4f ("material_specular", 1.0f, 1.0f, 1.0f, 1.0f);
+	shader->setUniform1f ("material_shininess", 32.0f);
+	// Angles are in Radians must convert to degrees
+//	shader->setUniform4f ("light0.position", 1.0, 1.0, 1.0, 0.0); //45 degrees overall...
+
+	// Revolving around like the sun (not using yAngle or zAngle)...
+	shader->setUniform4f ("light0.position", cosf (asRadians (xAngle)), 0.707, sinf (asRadians (xAngle)), 0.0);
+	//::log ("\nlight0.position is %3.2f, %3.2f, %3.2f, %3.2f.", cosf (asRadians (xAngle)), 0.707, sinf (asRadians (xAngle)), 0.0);
+
+	shader->setUniform4f ("light0.diffuse", 1.0f, 1.0f, 1.0f, 1.0f);
+	shader->setUniform4f ("light0.specular", 0.9f, 0.9f, 0.9f, 1.0f);
+	shader->setUniform4f ("light0.ambient", 0.2f, 0.2f, 0.2f, 1.0f);
+
+	// Send the transformation 
+	shader->setUniformMatrix4fv ("camera_matrix", (float *) &camera->cameraMatrix);
+
+	//WILF: The following gets the model-view matrix but doesn't give it to the shader...
+	Transformation modelView; glGetMatrixf (GL_MODELVIEW, modelView); 
+
+	static float time = 0.0; time += DT;
+	shader->setUniform1f ("time", time); 
+}
+
+void ShaderManager::stopShader (long shaderIndex) {
+	if (shaderIndex < 0 || shaderIndex >= shaders.size ()) {
+		// Invalid shader ref normal for non shader objects
+		return;
+	}
+
+	Shader* shader = shaders [shaderIndex];
+	if (shader == NULL) {
+		// Shader must be broken check log to see why
+		return;
+	}
+	shader->deactivate ();
+}
+
+void ShaderManager::import (::ifstream &input, World *world) {
+	char line [256]; //Working variable...
+
+	//Grab the shaders...
+	SKIP_TO_COLON;
+	SKIP_TO_SEMICOLON; long shadersSize = atoi (line);
+	CLEAR_THE_LINE;
+
+	//Delete old shaders...
+	if (!shaders.empty ()) {removeShaders (); shaders.clear ();}
+
+	//Reset our colletion of shaders...
+	shaders.reserve (shadersSize);
+
+	for (long i = 0; i < shadersSize; i++) {
+		//Grab shader name...
+		SKIP_TO_ENDLINE;
+		addShader (line);
+	}
+
+	defaultShaderIndex = addShader ("lesterlightingDiffuse"); //Or comment this line out...
+	shaders [defaultShaderIndex]->setUniformTexture ("texture", 0); //Texture is on unit 0...
+	  //This is equivalent to activating the shader so it sets the texture unit for THAT SHADER...
+	  //glUseProgramObjectARB (privateProgramHandle);
+	  //glUniform1iARB ("texture", 0); 
+}

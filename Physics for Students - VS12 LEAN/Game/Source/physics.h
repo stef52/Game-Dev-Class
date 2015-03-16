@@ -1,0 +1,69 @@
+//*****************************************************************************************//
+//                                        Physics                                          //
+//*****************************************************************************************//
+
+#ifndef physicsModule
+#define physicsModule 
+
+#include "PxPhysicsAPI.h"
+#include "PxExtensionsAPI.h"
+#include "PxDefaultAllocator.h"
+#include "PxDefaultErrorCallback.h"
+#include "PxTolerancesScale.h"
+#include "PxDefaultSimulationFilterShader.h"
+#include "PxCudaContextManager.h"
+
+using namespace physx;
+
+
+class PhysicsManager; class Terrain;
+
+extern PxPhysics *physicsSystem; //What PhysX called the physics SDK...
+extern PhysicsManager *physicsManager;
+
+class World; //Forward reference...
+class Texture; //Forward reference...
+
+class PhysicsManager {
+public:
+	PxScene *scene; PxCudaContextManager *cudaContextManager;
+	Texture *thrownObjectsTexture;
+
+	PhysicsManager () {initializePhysicsManager (); scene = NULL;}
+	~PhysicsManager () {finalizePhysicsManager ();}
+
+	//Reset is to be done each time a new world is loaded; e.g., by World::finalize ().
+	void reset () {
+		if (scene != NULL) scene->release (); scene = physicsScene ();
+		::log ("\nReset physicsSystem %x...", physicsSystem);
+	}
+	
+	//Creation methods...
+	PxRigidStatic *physicsTerrain (Terrain *terrain); //and returns a terrain actor...
+	PxRigidStatic *physicsMesh (World *world);
+	PxRigidStatic *physicsPlane (Point &position, Vector &direction);
+	PxRigidDynamic *physicsSphere (Point &position, Vector &velocity, float diameter, float mass);
+	PxRigidDynamic *physicsBox (Point &position, Vector &velocity, float width, float height, float depth, float mass);
+
+	//Query methods...
+	bool sweptRayHits (Point &from, Point &to, double &intersectionT, Point &intersectionPoint);
+	bool sweptSphereHits (PxRigidDynamic *physicsSphere, Point &from, Point &to, double &intersectionT, Point &intersectionPoint);
+
+	//Addition methods... (there are no removal methods; just release the objects instead)...
+	inline void add (PxActor *actor) {
+		DISABLED_PHYSICS_RETURN; scene->addActor (*actor); ::log ("\nPHYSICS ADD TO SCENE %x...", actor);
+	}
+
+private:
+	void initializePhysicsManager (); void finalizePhysicsManager ();
+	PxScene *physicsScene (); //Creates a physics scene...
+};
+
+//Convenience functions... for converting between Point (or Vector) and PxVec3 and between transformations and PxTransforms; i.e., PhysX poses...
+inline PxTransform asTransform (Transformation &transformation) {return PxTransform (*((PxMat44 *) &transformation));}
+inline Transformation asTransformation (PxTransform &transform) {return *((Transformation *) &PxMat44 (transform));}
+inline Point asPoint (PxVec3 &point) {return Point (point.x, point.y, point.z);}
+inline PxVec3 asVec3 (Point &point) {return PxVec3 (point.x, point.y, point.z);}
+inline PxTransform transformTranslatedTo (PxTransform &transform, Point &point) {return PxTransform (asVec3 (point), transform.q);}
+
+#endif //physicsModule

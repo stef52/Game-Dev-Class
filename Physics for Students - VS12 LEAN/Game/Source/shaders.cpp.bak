@@ -1,0 +1,277 @@
+//*****************************************************************************************//
+//                                      Includes                                           //
+//*****************************************************************************************//
+
+#include "includes.all"
+
+
+//*****************************************************************************************//
+//                                       Shaders                                           //
+//*****************************************************************************************//
+
+
+char *privateReadFile (const char *fileName) {
+	//Returns the complete file as a string, otherwise NULL...
+
+	//Attempt to open the file.
+	if (fileName == NULL) return NULL; //In case caller flubbed...
+	FILE *file = fopen (fileName, "r");
+	if (file == NULL) {
+		::log ("\nFailed to find the file called \"%s\"...", fileName); 
+		char shaderFileName [255] = "";
+		_fullpath ((char *) &shaderFileName, fileName, sizeof (shaderFileName));
+		::log ("\nFull path was \"%s\"...", shaderFileName);
+		return NULL;
+	}
+
+	//Find out how long it is.
+	fseek (file, 0, SEEK_END);
+	long fileSize = ftell (file);
+	fseek (file, 0, SEEK_SET);
+
+	//Read it in to newly allocated space...
+	char *memoryAddress = new char [fileSize+1]; //+1 for end of string '\0'.
+	long bytesRead = fread (memoryAddress, 1, fileSize, file);
+	memoryAddress [bytesRead] = '\0';
+	fclose (file);
+	return memoryAddress;
+}
+
+//Wilf's poor man's #include extension which can only handle one include...
+char *includePreprocessor (char *text) {
+	//Looks for one include statement of the form "#include "name". If it exists, loads the 
+	//file "../shaders/name" and replaces the include by the contents of the file...
+
+	const char *include = "#include \"";
+	char *start = strstr (text, include);
+	if (start == NULL) return text; //There is no include file...
+
+	char *name = start + strlen (include);
+	char *end = strstr (name, "\"");
+	char *after = end+1;
+
+	if (*(start-1) == '/' && *(start-2) == '/') return text; //It's been commented out (so ignore).
+
+	//Terminate the name by the end of string character and build the above file name...
+	*end = '\0'; //So we can pick up everything up to the closing double quote.
+	char fileName [256] = "../shaders/";
+	strcat (fileName, name);
+
+	//Read the text in and create the final concatenated text...
+	char *includeText = privateReadFile (fileName);
+	*start = '\0'; //So we can determine how long the string is before the include...
+
+	const long prefixLength = strlen (text);
+	const long includeLength = strlen (includeText);
+	const long suffixLength = strlen (after);
+
+	char *answer = new char [prefixLength + includeLength + suffixLength + 1];
+
+	*answer = '\0'; //Start empty...
+	strcat (answer, text); strcat (answer, includeText); strcat (answer, after);
+	delete [] text; return answer;
+}
+
+GLhandleARB Shader::privateLoadAndCompileShader (const char *fileName, GLenum type) {
+	//Returns the shader handle for the compiled shader in the given file if everything works out; 0, otherwise...
+
+	//Attempt to open the file.
+	char *memoryAddress = privateReadFile (fileName); if (memoryAddress == NULL) return NULL; //Log already done...
+	memoryAddress = includePreprocessor (memoryAddress); 
+
+	//Obtain a handle and associate the text of the file with this handle...
+	GLhandleARB shaderHandle = glCreateShaderObjectARB (type);
+	glShaderSourceARB (shaderHandle, 1, (const GLcharARB **) &memoryAddress, 0);
+	
+	//Discard the space for the text and proceed to compile it.
+	delete [] memoryAddress;
+	glCompileShaderARB (shaderHandle);
+
+	//Find out if compilation worked and return the handle if it did...
+	int status; glGetObjectParameterivARB (shaderHandle, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+	if (status != 0) return shaderHandle; //Everything OK...
+
+	//It didn't, so log error information...
+	prompt ("SHADER \"%s\" did not compile (look at log)", name.c_str ());
+	::log ("\nFailed to compile %s shader \"%s\"...", type == GL_VERTEX_SHADER_ARB ? "VERTEX" : "PIXEL", name.c_str ());
+	int length = 0; glGetObjectParameterivARB (shaderHandle, GL_OBJECT_INFO_LOG_LENGTH_ARB, &length);
+	const long MAXIMUM_LOG_STRING = 1024; char logString [MAXIMUM_LOG_STRING];
+	GLsizei messageLength = minimum (length, MAXIMUM_LOG_STRING);
+	if (messageLength > 0) {
+		glGetInfoLogARB (shaderHandle, messageLength, 0, logString);
+		::log ("\n\tREASON: %s", logString);
+	}
+
+	//and discard the handle that was obtained...
+	glDeleteObjectARB (shaderHandle); 
+	return 0;
+}
+
+GLhandleARB Shader::privateLinkShaders (GLhandleARB *shaderHandles, const long shaderHandlesSize) {
+	//Links the shaders that were successfully loaded and compiled...
+
+	//Start with a handle for the shader program...
+	GLhandleARB shaderProgramHandle = glCreateProgramObjectARB ();
+
+	//Attach the shaders to the shader program... and link them to the shader program.
+	{
+		for (long index = 0; index < shaderHandlesSize; index++) {
+			glAttachObjectARB (shaderProgramHandle, shaderHandles [index]);
+		}
+	}
+
+	glLinkProgramARB (shaderProgramHandle);
+
+	//Find out if compilation worked and return the porogram handle if it did...
+	int status; glGetObjectParameterivARB (shaderProgramHandle, GL_OBJECT_LINK_STATUS_ARB, &status);
+	if (status != 0) return shaderProgramHandle; //Everything OK...
+
+	//It didn't, so log error information...
+	prompt ("SHADER \"%s\" did not link (look at log)", name.c_str ());
+	::log ("\nFailed to link shader \"%s\"...", name.c_str ());
+	int length = 0; 
+	glGetObjectParameterivARB (shaderProgramHandle, GL_OBJECT_INFO_LOG_LENGTH_ARB, &length);
+
+	const long MAXIMUM_LOG_STRING = 1024; char logString [MAXIMUM_LOG_STRING];
+	GLsizei messageLength = minimum (length, MAXIMUM_LOG_STRING);
+	if (messageLength > 0) {
+		glGetInfoLogARB (shaderProgramHandle, messageLength, 0, logString);
+		::log ("\n\tREASON: %s", logString);
+	}
+
+	//and detach what was previously attached and discard the program handle that was obtained...
+	for (long index = 0; index < shaderHandlesSize; index++) {
+		glDetachObjectARB (shaderProgramHandle, shaderHandles [index]);
+	}
+	glDeleteObjectARB (shaderProgramHandle); //Should also detach the attached handles...
+	return 0;
+}
+
+void Shader::load () {
+	//Private vertex and fragment shader handles are created by loading and compiling the respective shaders
+	//and then a shader program handle is created and stored by linking those two private ones. Only the
+	//program handle is remembered... If anything goes wrong, isBroken is set to false...
+	
+	if (isBroken) return; //Once broken, always broken...
+
+	//Build path relative names for the corresponding vertex and fragment shaders.
+	const char *name = this->name.c_str ();
+
+	const std::string pathRelativeDirectory = "..\\Shaders\\"; 
+	const std::string vert = ".vert"; 
+	const std::string frag = ".frag";
+	const std::string fullVertexShaderName = pathRelativeDirectory + this->name + vert;
+	const std::string fullFragmentShaderName = pathRelativeDirectory + this->name + frag;
+
+	const char *vertexShaderName = fullVertexShaderName.c_str ();
+	const char *fragmentShaderName = fullFragmentShaderName.c_str ();
+
+	//Compile and link the shaders leaving it to the called routines to log error messages. 
+	GLhandleARB shaderHandles [2]; GLhandleARB handle;
+
+	//Load and compile the vertex shader...
+	handle = privateLoadAndCompileShader (vertexShaderName, GL_VERTEX_SHADER_ARB);
+	if (handle == 0) {isBroken = true; return;}
+	shaderHandles [0] = handle;
+
+	//Load and compile the fragment shader...
+	handle = privateLoadAndCompileShader (fragmentShaderName, GL_FRAGMENT_SHADER_ARB);
+	if (handle == 0) {isBroken = true; return;}
+	shaderHandles [1] = handle;
+
+	//Link the shaders into one shader program.
+	handle = privateLinkShaders (shaderHandles, 2);
+	if (handle == 0) {isBroken = true; return;}
+
+	//Record the program handle for future use...
+	privateProgramHandle = handle;
+
+	::log ("\nCreate shader program %d for \"%s\" and \"%s\".", handle, vertexShaderName, fragmentShaderName);
+}
+
+void Shader::unload () {
+	if (isBroken) return;
+
+	//Detach and delete each shader from the program shader and also delete the program shader...
+	GLsizei size; GLuint shaders [2];
+	glGetAttachedShaders (privateProgramHandle, 2, &size, shaders);
+
+	for (long index = 0; index < size; index++) {
+		glDetachShader (privateProgramHandle, shaders [index]);
+		glDeleteShader (shaders [index]);
+	}
+
+	glDeleteProgram (privateProgramHandle);
+}
+
+void Shader::activate () {
+	if (isBroken) {deactivate (); return;}
+	glUseProgramObjectARB (privateProgramHandle);
+}
+
+void Shader::deactivate () {
+	glUseProgramObjectARB (0);
+}
+
+void Shader::setUniform1f (const std::string &variable, float value) {
+	if (isBroken) {return;}
+	glUniform1f (glGetUniformLocation (privateProgramHandle, variable.c_str ()), value);
+}
+void Shader::setUniform3f (const std::string &variable, float value0, float value1, float value2) {
+	if (isBroken) {return;}
+	glUniform3f (glGetUniformLocation (privateProgramHandle, variable.c_str ()), value0, value1, value2);
+}
+void Shader::setUniform4f (const std::string &variable, float value0, float value1, float value2, float value3) {
+	if (isBroken) {return;}
+	glUniform4f (glGetUniformLocation (privateProgramHandle, variable.c_str ()), value0, value1, value2, value3);
+}
+
+void Shader::setUniform1i (const std::string &variable, long value) {
+	if (isBroken) {return;}
+	glUniform1i (glGetUniformLocation (privateProgramHandle, variable.c_str ()), value);
+}
+
+void Shader::setUniformTexture (const std::string &variable, long textureUnit) {
+	if (isBroken) {return;}
+	glUniform1iARB (glGetUniformLocationARB (privateProgramHandle, variable.c_str ()), textureUnit);
+}
+
+void Shader::setUniformMatrix4fv (const std::string &variable, float *matrix) {
+	if (isBroken) {return;}
+	const long matrixCount = 1; const bool shouldTranspose = GL_FALSE;
+	glUniformMatrix4fvARB (glGetUniformLocationARB (privateProgramHandle, variable.c_str ()), matrixCount, shouldTranspose, matrix);
+}
+
+void Shader::example () {
+	//This example is conceptual; i.e., you can't actually run it...
+	return; //Just in case you try...
+	
+	//static Shader *shader = shaderManager->getShader (0); //Only done the first time (that's how static works)...
+
+	//shader->activate ();
+
+	//Associate texture sampler "reflection" with the texture activated in texture unit 0.
+	//i.e., the one you activated after executing   	glActiveTexture (GL_TEXTURE0);      //See below.
+	//shader->setUniformTexture ("reflection", 0); 
+	//shader->setUniformTexture ("refraction", 1); //Same but set up via glActiveTexture (GL_TEXTURE1); 
+	//shader->setUniformTexture ("noise", 2);
+	//
+	////Assign 1 (true) into bool (or int) variable "adjustHeight". Similar for float variable "heightScale" 
+	//shader->setUniform1i ("adjustHeight", 1);
+	//shader->setUniform1f ("heightScale", 2.0);
+	//
+	//float transformation [16];
+	//glPushMatrix ();
+	//	glLoadIdentity ();
+	//	glTranslatef (0.0,0.68,-10.0);
+	//	glScalef (0.08,0.08,0.08);
+	//	glGetFloatv (GL_MODELVIEW_MATRIX, transformation);
+	//	shader->setUniformMatrix4fv ("matrix", transformation); //Assign entire transformation...
+	//glPopMatrix ();
+
+//	glActiveTexture (GL_TEXTURE0); //reflectionTexture->activate (); //Commented out since texture
+//	glActiveTexture (GL_TEXTURE1); //refractionTexture->activate (); //variables not defined...
+//	glActiveTexture (GL_TEXTURE2); //noiseTexture->activate ();
+
+	//shader->deactivate ();
+}

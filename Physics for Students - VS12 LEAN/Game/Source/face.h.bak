@@ -1,0 +1,41 @@
+//*****************************************************************************************//
+//                                        Face                                             //
+//*****************************************************************************************//
+
+#ifndef faceModule
+#define faceModule 
+
+struct GamePoint {
+	double x, y, z;
+	double tx, ty;
+	double nx, ny, nz;
+
+	Point asPoint () {return Point (x, y, z);}
+};
+
+class Texture;
+//class Points;
+class World; //Forward reference for import method...
+
+class Face {
+	static GLfloat defaultColor [];
+public:
+	//A face owns it's points and therefore deletes them on its own.
+	//It does not own it's texture because other faces will refer to the same texture...
+	//The world should own the texture...
+
+	Texture* texture;
+	GamePoint** points;	long pointsSize;
+	GLfloat* color;
+
+	Face ();
+	~Face ();
+
+	void tick ();
+	void draw ();
+	void log ();
+
+	void import (::ifstream &input, World *world);
+};
+
+#endif // faceModule

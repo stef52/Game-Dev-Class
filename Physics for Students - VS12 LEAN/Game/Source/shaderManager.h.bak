@@ -1,0 +1,68 @@
+//*****************************************************************************************//
+//                                      Shaders                                            //
+//*****************************************************************************************//
+
+#ifndef shaderManagerModule
+#define shaderManagerModule 
+
+//*****************************************************************************************//
+//                                      Extras                                             //
+//*****************************************************************************************//
+
+class ShaderManager;
+extern ShaderManager *shaderManager;
+
+class Shader;
+
+extern long defaultShaderIndex;
+
+#define ROTATE_LIGHT 0 //To keep lighting constant
+//#define ROTATE_LIGHT 1 //To make lighting change fsst...
+
+#define X_RATE (ROTATE_LIGHT ? 36.0f : 0.0f)
+#define Y_RATE (ROTATE_LIGHT ? 36.0f : 0.0f)
+#define Z_RATE (ROTATE_LIGHT ? 36.0f : 0.0f)
+#define X_ANGLE (ROTATE_LIGHT ? 0.0f : 225.0f)
+#define Y_ANGLE (ROTATE_LIGHT ? 0.0f : 0.0f)
+#define Z_ANGLE (ROTATE_LIGHT ? 0.0f : 0.0f)
+
+class ShaderManager {
+private:
+	vector<Shader*> shaders;	
+
+	public:
+		// Part of the lighting model should be moved to a light object
+		float xRotRate;
+		float yRotRate;
+		float zRotRate;
+		float xAngle;
+		float yAngle;
+		float zAngle;
+
+	public:
+		static void ShaderManager::setup ();
+		static void ShaderManager::wrapup () {delete shaderManager; shaderManager = NULL;}
+
+		long addShader (const char *name);
+		void tick ();
+		void startShader (long shaderIndex);
+		void stopShader (long shaderIndex);
+		void import (::ifstream &input, World *world);
+	
+	protected:
+		void removeShaders ();		
+
+		//ShaderManager () : xRotRate (1.0f/10.0f), yRotRate (1.0f/10.0f), zRotRate (1.0f/10.0f), xAngle (0), yAngle (0), zAngle (0) {}
+		//Set rotation rates in degrees per second...
+		ShaderManager () : xRotRate (X_RATE), yRotRate (Y_RATE), zRotRate (Z_RATE), xAngle (X_ANGLE), yAngle (Y_ANGLE), zAngle (Z_ANGLE) {}
+		~ShaderManager ();
+};
+
+#undef X_RATE 
+#undef Y_RATE 
+#undef Z_RATE 
+#undef X_ANGLE 
+#undef Y_ANGLE 
+#undef Z_ANGLE
+
+#endif //shaderModule 

@@ -1,0 +1,71 @@
+
+//*****************************************************************************************//
+//                                      Includes                                           //
+//*****************************************************************************************//
+
+#define DISABLE_PHYSICS 1
+#if (DISABLE_PHYSICS)
+	#define CAUSE_A_COMPILER_ERROR NULL
+	#define DISABLED_PHYSICS_RETURN return
+#else
+	#define DISABLED_PHYSICS_RETURN 
+#endif
+
+//#define UsingVisualStudioNet 0
+//#define UsingVisualStudioNet 1
+#define UsingVisualStudioNet (_MSC_VER >= 1300)
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>    
+#if UsingVisualStudioNet
+	#include <iostream> 
+	#include <fstream>
+#else
+	#include <iostream.h> 
+	#include <fstream.h>
+#endif
+#include <string.h>
+
+#include <direct.h>
+#include "..\glew.h"   
+	#undef glBindFragDataLocation
+    #define glBindFragDataLocation glBindFragDataLocationEXT
+#include "..\glut.h"
+
+#include "logging.h"
+#include "fileDialog.h"
+#include "vector"
+#include "map"
+#include "string"
+using namespace std;
+
+//#pragma warning (disable: 4786)
+#if (UsingVisualStudioNet)
+	#pragma warning (disable: 4237)
+#endif //UsingVisualStudioNet
+
+#include "utilities.h"
+#include "points.h"
+#include "transformations.h"
+#include "boundingBox.h"
+#include "physics.h"
+#include "player.h"
+#include "camera.h"
+#include "inputManager.h"
+#include "plane.h"  
+#include "texture.h"
+#include "textureManager.h"
+#include "face.h"
+#include "object.h"
+#include "physicsObject.h"
+#include "terrain.h"
+#include "environmentObject.h"
+#include "world.h"
+#include "game.h"
+#include "frustum.h"
+#include "extensions.h"
+#include "faceGroup.h"
+#include "shaders.h"
+#include "shaderManager.h"

@@ -1,0 +1,81 @@
+
+//*****************************************************************************************//
+//                                      Includes                                           //
+//*****************************************************************************************//
+
+#include "includes.all"
+
+//*****************************************************************************************//
+//                                      Utilities                                          //
+//*****************************************************************************************//
+
+void convertToLowercase (char *name) {
+	for (long index = strlen (name) - 1; index >= 0; index--) {
+		name [index] = tolower (name [index]);
+	}
+}
+
+bool isExtensionSupported (const char *allExtensions, const char *extension) {
+	//Extension names should not have spaces (so ignore it if it has a space by returning false).
+	const char *where = strchr (extension, ' ');
+	if (where != NULL || *extension == '\0') return false;
+
+	//It takes a bit of care to be fool-proof about parsing the OpenGL extensions string. 
+	//Don't be fooled by sub-strings, etc
+	const char *start = allExtensions;
+	for (;;) {
+		where = strstr ((const char *) start, extension);
+		if (where == NULL) return false;
+		const char *terminator = where + strlen (extension);
+		if (where == start || *(where - 1) == ' ') {
+			if (*terminator == ' ' || *terminator == '\0') {return true;}
+		}
+		start = terminator;
+	}
+}
+
+void logExtensions (bool logAllExtensions) {
+	char *extensions = (char *) glGetString (GL_EXTENSIONS);
+
+	//Log 3 specific extensions by specifically checking for them; one needed for face groups (the vertex buffer
+	//extension), one needed for shaders (the shader extension), and one needed for frame buffers.
+	
+	bool isARBVertexBufferObjectExtensionPresent = isExtensionSupported (extensions, "GL_ARB_vertex_buffer_object");
+	::log ("\nARB vertex buffer object extension %s supported", isARBVertexBufferObjectExtensionPresent ? "IS" : "IS NOT");
+
+	bool isARBShaderExtensionPresent = isExtensionSupported (extensions, "GL_ARB_shading_language_100");
+	::log ("\nARB shader extension %s supported", isARBShaderExtensionPresent ? "IS" : "IS NOT");
+
+	bool isARBFrameBufferExtensionPresent = isExtensionSupported (extensions, "GL_ARB_framebuffer_object");
+	::log ("\nARB frame buffer extension %s supported", isARBFrameBufferExtensionPresent ? "IS" : "IS NOT");
+
+	if (!logAllExtensions) return;
+
+	::log ("\nAvailable OpenGL extensions:");
+	char buffer [256]; bool looping = true; char *next = extensions;
+	while (looping) {
+		char *end = strchr (next, ' '); if (end == NULL) end = strchr (next, '\0');
+		long size = end - next;
+		strncpy (buffer, next, size); buffer [size] = '\0';
+		::log ("\n\t%s", buffer);
+		next = end + 1;
+		looping = end != NULL && *end != '\0';
+	}
+	::log ("\nDONE");
+}
+
+void logModelViewMatrix (const char *title) {
+	::log ("\n%s", title);
+    Transformation transformation; 
+	glGetMatrixf (GL_MODELVIEW_MATRIX, transformation);
+	transformation.log ();
+}
+void logPerspectiveMatrix (const char *title) {
+	::log ("\n%s", title);
+    Transformation transformation; 
+	glGetMatrixf (GL_PROJECTION_MATRIX, transformation);
+	transformation.log ();
+}
+void logMatrices (const char *title) {
+	::log ("\n%s", title); logModelViewMatrix ("model view"); logPerspectiveMatrix ("perspective");
+}
