@@ -19,6 +19,12 @@
       <UniqueIdentifier>{894309ab-a567-42ed-937c-228ac16c8c5b}</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
+    <Filter Include="Shaders\Shadows">
+      <UniqueIdentifier>{f4555521-cffb-4f85-a1cb-25e354f2e782}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\light">
+      <UniqueIdentifier>{e447bff0-4c86-4e3b-a76b-16f53f0afbda}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\boundingBox.cpp">
@@ -97,6 +103,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Source\world.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\frameBuffers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\lightIndexedRendering.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -185,6 +197,15 @@
     <ClInclude Include="Source\world.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\frameBuffers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\lightData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\lightIndexedRendering.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Source\includes.all">
@@ -204,6 +225,75 @@
     </None>
     <None Include="..\Shaders\WilfLightingLibrary.all">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\Shaders\ShadowShaders\shadowDrawWhatLightSees.vert">
+      <Filter>Shaders\Shadows</Filter>
+    </None>
+    <None Include="..\Shaders\ShadowShaders\shadowDrawWhatLightSees.frag">
+      <Filter>Shaders\Shadows</Filter>
+    </None>
+    <None Include="..\Shaders\ShadowShaders\Extensions you might want to add to WilfLightingLibrary.all">
+      <Filter>Shaders\Shadows</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\decodeLightIndices.function">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\defaultLighting.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\defaultLighting.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawLightFuzzBall.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawLightFuzzBall.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawLightModel.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawLightModel.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawPositionAndZPrepass.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawPositionAndZPrepass.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights - Trebilco Version.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights - Trebilco Version.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawZPrepass.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\drawZPrepass.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\encodeLightIndex.function">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\verifyLightIndex.frag">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\verifyLightIndex.vert">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\WilfLightIndexDrawingLibrary.all">
+      <Filter>Shaders\light</Filter>
+    </None>
+    <None Include="..\Shaders\ColoringShaders\WilfLightingLibrary.all">
+      <Filter>Shaders\light</Filter>
     </None>
   </ItemGroup>
 </Project>

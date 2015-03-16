@@ -1,0 +1,26 @@
+//Wilf's light indexed drawing library...
+
+#include "WilfLightingLibrary.all"
+
+vec4 ambientFreeCombinedColor (vec4 textureColor, vec3 pixelNormalCS, vec3 pixelToLightCS, vec3 pixelToCameraCS, float shadowBrightness) {
+	return 
+		textureColor * (/*ambientColor () +*/ diffuseColor (pixelNormalCS, pixelToLightCS, shadowBrightness))
+		/*+ specularColor (pixelNormalCS, pixelToLightCS, pixelToCameraCS)*/; 
+}
+
+vec4 ambientFreeAndDirectionInsensitiveDiffuseCombinedColor (vec4 textureColor, vec3 pixelNormalCS, vec3 pixelToLightCS, vec3 pixelToCameraCS, float shadowBrightness) {
+	return 
+		textureColor * (/*ambientColor () +*/ Kd () * shadowBrightness)
+		/*+ specularColor (pixelNormalCS, pixelToLightCS, pixelToCameraCS)*/; 
+}
+
+		
+
+bool alignedWith (vec3 a, vec3 b) {//Vectors pointing in the same direction.
+	//Since A.B = |A||B|cos angle and cos (0 to 90 degrees) is positive; otherwise negative.
+	//In degrees, cos (0) = 1, cos (45) = 0.707, cos (90) = 0, cos (135) = -0.707, cos (180) = -1.
+	return dot (a, b) >= 0.0;
+}
+
+float squaredDistance (vec3 point1, vec3 point2) {vec3 delta = point2 - point1; return dot (delta, delta);}
+

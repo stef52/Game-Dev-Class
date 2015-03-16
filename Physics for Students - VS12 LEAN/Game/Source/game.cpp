@@ -80,6 +80,8 @@ void setupOpenGL () {
 	if (useLights) glEnable (GL_LIGHTING); else glDisable (GL_LIGHTING);
 }
 
+GLuint shadowMapFrameBufferID, shadowMapDepthBufferID;
+
 void Game::setup () {
 	setupOpenGL (); setupOpenGLExtensions ();
 	glewInit ();
@@ -92,19 +94,23 @@ void Game::setup () {
 	World::setup ();
 	FaceGroup::setup ();
 	Shader::setup ();
+	setupColoredLights();
+	setupShadows();
 }
 
 void Game::wrapup () {
-	Shader::wrapup ();
-	FaceGroup::wrapup ();
+	Shader::wrapup();
+	FaceGroup::wrapup();
 	//if (game == NULL) return; //Wrapping up a second time (shouldn't happen).
-	if (game->world != NULL) {delete game->world; game->world = NULL;}
-	wrapupFont ();
+	if (game->world != NULL) { delete game->world; game->world = NULL; }
+	wrapupFont();
 	delete game; game = NULL;
-	Player::wrapup ();
-	Camera::wrapup ();
-	InputManager::wrapup ();
-	World::wrapup ();
+	Player::wrapup();
+	Camera::wrapup();
+	InputManager::wrapup();
+	World::wrapup();
+	wrapupColoredLights();
+	wrapupShadows();
 	delete physicsManager;
 	::log ("\nEnding game...\n\n");
 }
@@ -113,7 +119,13 @@ void Game::tick () {
 	inputManager->tick ();
 	camera->tick ();
 	player->tick ();
+	if (physicsManager->scene != NULL) {
+		physicsManager->scene->simulate(DT);
+		physicsManager->scene->fetchResults(true);
+	}
 	if (world != NULL) world->tick ();
+
+	tickColoredLights();
 }
 
 void Game::drawTeapots () {
@@ -134,6 +146,7 @@ void Game::drawTeapots () {
 }
 
 bool disableShaders = false;
+Choice choice = UseIndexedLights;
 void Game::draw () {
 	//If there is no world, draw a teapot; otherwise, draw the world...
 	//Neither the input manager nor the camera draws itself...
@@ -142,7 +155,32 @@ void Game::draw () {
 		if (world == NULL) { 
 			drawTeapots ();
 		} else {
-			world->draw ();
+			switch (drawingChoice) 
+			{
+				case NormalOnly:
+				{
+					if (drawFuzzBallsInNormalDraw) { drawAllLightFuzzBallsInNormalWorld(); }
+					else if (drawLightSpheresInNormalDraw) { drawAllLightSpheresInNormalWorld(); }
+
+					world->draw();
+					break; 
+				}
+				case UseShadows: 
+				{
+					world->draw();
+					break; 
+				}
+				case UseIndexedLights: 
+				{
+					drawColoredLights(world);
+					break; 
+				}
+				case UseShadowsAndIndexedLights: 
+				{
+					world->draw();
+					break; 
+				}
+			};
 		}
 		player->draw ();
 	camera->endCamera ();
@@ -253,6 +291,8 @@ void Game::drawFrameRate () {
 		game == NULL || game->world == NULL ? "" : (game->flyModeOn ? "FLYING" : "COLLISION DETECTION"));
 }
 
+
+
 void Game::drawNote (const char *message, ...) {
 	char text [1000]; va_list parameters;									
 	if (message == NULL) return;
@@ -278,4 +318,54 @@ void Game::drawHelp () {
 		drawMessage (1, screenHeight-290, "%s", "1 - throw cube");
 		drawMessage (1, screenHeight-320, "%s", "? - toggle help");
 	}
+}
+
+
+void Game::setupShadows() {
+	buildRawFrameBuffers(1, &shadowMapFrameBufferID);
+	buildRawShadowMapDepthBuffer(1, &shadowMapDepthBufferID, screenWidth, screenHeight);
+	
+	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBufferID);
+	//attachShadowMapDepthTexture(shadowMapDepthBufferID);
+
+//	glDrawBuffers(0, NULL); //Use no color textures...
+}
+/*
+Shader *shadowDrawWhatLightSees = NULL;
+Shader *shadowDrawWorldWithOneSpotlight = NULL;
+void setupShadows(){
+	shadowDrawWhatLightSees = new Shader("shadowDrawWhatLightSees");
+	shadowDrawWorldWithOneSpotlight = new Shader("shadowDrawWorldWithOneSpotLight");
+	shadowDrawWhatLightSees->load();
+	shadowDrawWorldWithOneSpotlight->load();
+
+	buildRawFrameBuffers(1, &shadowMapFrameBufferID);
+	buildRawShadowMapDepthBuffer(1, &shadowMapDepthBufferID, screenWidth, screenHeight);
+	//glBindFramebuffer(GL_FRAMEBUFFER,shadowMapFrameBufferID); //something is wrong with these 3 lines, it makes the program draw nothing.
+	//attachShadowMapDepthTexture(shadowMapDepthBufferID);
+
+	//glDrawBuffers(0,NULL);
+}*/
+
+void Game::wrapupShadows(){
+	/*
+	drawLightModelShader->unload(); delete drawLightModelShader;
+	drawWorldWithAllLightsShader->unload(); delete drawWorldWithAllLightsShader;
+	drawLightFuzzBallShader->unload(); delete drawLightFuzzBallShader;
+	drawZPrepassShader->unload(); delete drawZPrepassShader;
+	verificationShader->unload(); delete verificationShader;
+#if (CAPTURE_WORLD_POSITION_CS)
+	//Not yet done...
+#endif //CAPTURE_WORLD_POSITION_CS
+
+	delete allLightColors; delete allLightPositions; delete fuzzBall;
+
+	glDeleteFramebuffers(1, &lightIndexedFrameBufferID);
+	glDeleteRenderbuffers(1, &lightIndexedDepthBufferID);
+	glDeleteTextures(1, &lightIndexedColorBufferID);
+}
+
+void Game::tickShadows() {
+	GLfloat lightpos[] = { 0, 0, -1, 0 };
+	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);*/
 }

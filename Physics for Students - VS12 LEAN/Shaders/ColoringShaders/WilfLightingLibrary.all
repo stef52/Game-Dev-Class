@@ -1,0 +1,53 @@
+//Wilf's simple lighting library...
+
+//Constants and utilities
+#define interpolate mix
+#define clamp01(x) clamp (x, 0.0, 1.0)
+
+//Lighting routines...
+
+//Values obtained from default shader...
+#ifdef USING_DEFAULT_SHADER
+	vec4 Ka () {return ambient;}
+	vec4 Kd () {return diffuse;}
+	vec4 Ks () {return specular;}
+	float specularExponent = shininess;
+#else
+	#ifdef USING_LIGHT_INDEXED_DRAWING
+		#define Ka() (vec4 (0.8, 0.8, 0.8, 1.0))
+		#define Kd() (vec4 (lightColor * vec3 (0.8, 0.8, 0.8), 1.0))
+		vec4 Ks () {return vec4 (0.6,0.6,0.6,1.0);} 
+		float specularExponent = 16.0; 
+	#endif
+#endif
+
+//Light functions from lighting for dummies...
+bool inSpotLight (vec3 normalizedPixelToLight, vec3 normalizedToLightVector, float coneAngleAsCosine) {
+	//Negating each of the above unit directions A and B makes them point away from the light.
+	//Note: -A.-B = A.B = |A||B| cos angle = cos angle; cosine(45 degrees) = 0.707, cosine(0 degrees) = 1.0.
+	return dot (normalizedPixelToLight, normalizedToLightVector) > coneAngleAsCosine;
+}
+
+vec4 ambientColor () {return Ka ();}
+vec4 diffuseColor (vec3 pixelNormal, vec3 normalizedToLight) {
+	return Kd () * clamp01 (dot (pixelNormal, normalizedToLight));
+}
+vec4 diffuseColor (vec3 pixelNormal, vec3 normalizedToLight, float shadowIntensity) {  
+	return diffuseColor (pixelNormal, normalizedToLight) * shadowIntensity;
+}
+vec4 specularColor (vec3 pixelNormal, vec3 normalizedToLight, vec3 normalizedToCamera) { 
+	//Uses Blinn-Phong’s halfway vector...
+	vec3 halfway = normalize (normalizedToLight + normalizedToCamera);
+	float intensity = pow (clamp01 (dot (halfway, pixelNormal)), specularExponent);
+	//if (dot (pixelNormal, normalizedToLight) <= 0.0) intensity = 0.0;
+	return Ks () * intensity;
+} 
+
+//All vectors below are assumed to be normalized...
+vec4 combinedColor (vec4 textureColor, vec3 pixelNormalCS, vec3 pixelToLightCS, vec3 pixelToCameraCS) {
+	return 
+		textureColor * (ambientColor () + diffuseColor (pixelNormalCS, pixelToLightCS, 1.0))
+		+ specularColor (pixelNormalCS, pixelToLightCS, pixelToCameraCS); 
+}
+
+

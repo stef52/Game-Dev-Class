@@ -54,11 +54,13 @@ inline void computeDT () {
 
 void displayWindow () {
 	if (game == NULL) return;
-//glClearColor (0.0, 0.0, 0.0, 1.0); //black
+  //glClearColor (0.0, 0.0, 0.0, 1.0); //black
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		//WILF PhysX... Looks like a good place to run the simulation... If you don't have a physics scene, don't to it... Also, DT is available here....
-		CAUSE_A_COMPILER_ERROR;
-		game->draw ();
+	if (physicsManager->scene != NULL) 	physicsManager->scene->simulate(DT);
+	game->draw();
+	if (physicsManager->scene != NULL) 	physicsManager->scene->fetchResults(true);
+
 	glutSwapBuffers ();
 }
 
@@ -134,11 +136,10 @@ void normalKeyPressed (unsigned char character, int x, int y) {
 		case ' ': case enterCharacter:
 			//Open door perhaps?
 			break;
-		case '1': Cube::playerThrowCube (); break;
 		case '0':
-//		case '1':
-		case '2':
-		case '3':
+		case '1': Cube::playerThrowCube (); break;
+		case '2': Sphere::playerThrowSphere(); break;
+		case '3': Building::setUp(); break;
 		case '4':
 		case '5':
 		case '6':

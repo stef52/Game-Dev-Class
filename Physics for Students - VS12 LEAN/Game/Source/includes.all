@@ -3,7 +3,7 @@
 //                                      Includes                                           //
 //*****************************************************************************************//
 
-#define DISABLE_PHYSICS 1
+#define DISABLE_PHYSICS 0
 #if (DISABLE_PHYSICS)
 	#define CAUSE_A_COMPILER_ERROR NULL
 	#define DISABLED_PHYSICS_RETURN return
@@ -69,3 +69,5 @@ using namespace std;
 #include "faceGroup.h"
 #include "shaders.h"
 #include "shaderManager.h"
+#include "frameBuffers.h"
+#include "lightIndexedRendering.h"

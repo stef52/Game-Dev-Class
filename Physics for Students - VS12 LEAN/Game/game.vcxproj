@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -16,13 +16,13 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -138,9 +138,11 @@
     <ClCompile Include="Source\face.cpp" />
     <ClCompile Include="Source\faceGroup.cpp" />
     <ClCompile Include="Source\fileDialog.cpp" />
+    <ClCompile Include="Source\frameBuffers.cpp" />
     <ClCompile Include="Source\frustum.cpp" />
     <ClCompile Include="Source\game.cpp" />
     <ClCompile Include="Source\inputManager.cpp" />
+    <ClCompile Include="Source\lightIndexedRendering.cpp" />
     <ClCompile Include="Source\logging.cpp" />
     <ClCompile Include="Source\main.cpp" />
     <ClCompile Include="Source\object.cpp" />
@@ -168,9 +170,12 @@
     <ClInclude Include="Source\face.h" />
     <ClInclude Include="Source\faceGroup.h" />
     <ClInclude Include="Source\fileDialog.h" />
+    <ClInclude Include="Source\frameBuffers.h" />
     <ClInclude Include="Source\frustum.h" />
     <ClInclude Include="Source\game.h" />
     <ClInclude Include="Source\inputManager.h" />
+    <ClInclude Include="Source\lightData.h" />
+    <ClInclude Include="Source\lightIndexedRendering.h" />
     <ClInclude Include="Source\logging.h" />
     <ClInclude Include="Source\object.h" />
     <ClInclude Include="Source\physics.h" />
@@ -189,6 +194,29 @@
     <ClInclude Include="Source\world.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Shaders\ColoringShaders\decodeLightIndices.function" />
+    <None Include="..\Shaders\ColoringShaders\defaultLighting.frag" />
+    <None Include="..\Shaders\ColoringShaders\defaultLighting.vert" />
+    <None Include="..\Shaders\ColoringShaders\drawLightFuzzBall.frag" />
+    <None Include="..\Shaders\ColoringShaders\drawLightFuzzBall.vert" />
+    <None Include="..\Shaders\ColoringShaders\drawLightModel.frag" />
+    <None Include="..\Shaders\ColoringShaders\drawLightModel.vert" />
+    <None Include="..\Shaders\ColoringShaders\drawPositionAndZPrepass.frag" />
+    <None Include="..\Shaders\ColoringShaders\drawPositionAndZPrepass.vert" />
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights - Trebilco Version.frag" />
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights - Trebilco Version.vert" />
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights.frag" />
+    <None Include="..\Shaders\ColoringShaders\drawWorldWithAllLights.vert" />
+    <None Include="..\Shaders\ColoringShaders\drawZPrepass.frag" />
+    <None Include="..\Shaders\ColoringShaders\drawZPrepass.vert" />
+    <None Include="..\Shaders\ColoringShaders\encodeLightIndex.function" />
+    <None Include="..\Shaders\ColoringShaders\verifyLightIndex.frag" />
+    <None Include="..\Shaders\ColoringShaders\verifyLightIndex.vert" />
+    <None Include="..\Shaders\ColoringShaders\WilfLightIndexDrawingLibrary.all" />
+    <None Include="..\Shaders\ColoringShaders\WilfLightingLibrary.all" />
+    <None Include="..\Shaders\ShadowShaders\Extensions you might want to add to WilfLightingLibrary.all" />
+    <None Include="..\Shaders\ShadowShaders\shadowDrawWhatLightSees.frag" />
+    <None Include="..\Shaders\ShadowShaders\shadowDrawWhatLightSees.vert" />
     <None Include="..\Shaders\WilfLightingLibrary.all" />
     <None Include="Source\includes.all" />
     <None Include="..\Worlds\castle4.wrl" />

@@ -1,0 +1,33 @@
+
+void encodeLightIndex (long lightIndex, unsigned char colors [4]) {
+	//Encode the light index as the red/green/blue/alpha bits of colors..
+	//Refer to powerpoint notes pages 36-37 for details if necessary. 
+	//Recall that we are using an RGBA8 texture for receiving the light color; 
+	//see lightIndexedColorBufferID. So the index is divided into four 2 bit parts. 
+	//The 4 2-bit parts must be left shifted to the left end of their respectively 
+	//RGBA components.. More specifically,
+	
+	//The 2 low order bits go in red (these shift the most)...; i.e. shift 000000XX to XX000000.
+	//The next 2 higher order bits go in green; i.e. shift 0000XX00 to XX000000.
+	//The next 2 go in blue; i.e. shift 00XX0000 to XX000000.
+	//The highest order 2 bits go in alpha (these shift the least; i.e. a 0-shift)...;
+
+	#if (EXPERIMENT >= EXPERIMENT3)
+
+		//Convert the light index into 4 2-bit values each shifted into the leftmost 2 bit positions...
+		//NOT YET DONE
+		unsigned char redBits = (lightIndex >>6)<<6;
+		unsigned char greenBits = (lightIndex >>4)<<6;
+		unsigned char blueBits = (lightIndex >> 2)<<6;
+		unsigned char alphaBits = (lightIndex <<6);
+
+	#else
+		unsigned char redBits   = 0; 
+		unsigned char greenBits = 0;
+		unsigned char blueBits  = 0;
+		unsigned char alphaBits = 0; 			
+	#endif //EXPERIMENT
+	
+	colors [0] = redBits; colors [1] = greenBits; colors [2] = blueBits; colors [3] = alphaBits;
+}
+

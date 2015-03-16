@@ -1,0 +1,79 @@
+//Note that the lights returned by decode lights are ordered such that if there is
+//only one light, it's in lightIndices [0]; if there are 2, it's in [0] and [1], 
+//etc. 
+
+//Recall that when a light is drawn, existing bits (WHICH ARE INITIALLY ZERO AND
+//REPRESENT LIGHT INDEX 0; I.E., A BLACK LIGHT OR NO LIGHT) are shifted right and 
+//the new light bits are stored on the left... Since we process the indices from 
+//right to left and store then in lightIndices [i], we ensure that i starts at 3 and 
+//decreases to 0 ensuring that the last light processed is in lightIndices [0]...
+
+void decodeLightIndices (vec4 floatLightIndices, out float lightIndices [4]) {	
+	//If the pixels were integers, the bits would look as follows 
+	//	where red contains the lowest order 2-bits, green the next lowest, then blue, and alpha are the highest order bits...
+	//			red			1122 3344; more specifically, the red   version denoted r1r1r2r2 r3r3r4r4
+	//			green		1122 3344; more specifically, the green version denoted g1g1g2g2 g3g3g4g4
+	//			blue		1122 3344; more specifically, the blue  version denoted b1b1b2b2 b3b3b4b4
+	//			alpha		1122 3344; more specifically, the alpha version denoted a1a1a2a2 a3a3a4a4
+	
+	//So index0 can be recovered by assembling the 1111 1111 bits, specifically a1a1b1b1 g1g1r1r1 in that order.
+	//So index1 can be recovered by assembling the 2222 2222 bits, specifically a2a2b2b2 g2g2r2r2 in that order.
+	//So index2 can be recovered by assembling the 3333 3333 bits, specifically a3a3b3b3 g3g3r3r3 in that order.
+	//So index3 can be recovered by assembling the 4444 4444 bits, specifically a4a4b4b4 g4g4r4r4 in that order.
+	
+		#if (EXPERIMENT <= 2)
+		//Pretend it's always light index 0; i.e., there are no lights...
+		lightIndices [0] = lightIndices [1] = lightIndices [2] = lightIndices [3] = 0.0;
+		return;
+#else
+                // **************************************************************************************************
+                // NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE NOT DONE
+                // I've retained the comments I used... Use them as a guide; AFTER, DELETE THESE 4 LINES...
+ 
+                //WORD OF ADVICE: We added a facility that can tell you if your encoding/decoding works
+                //called verifyThatLightIndicesEncodingAndDecodingWorks but the line of code that calls
+                //it is commented out... It draws 256 squares, one per lightIndex, going from black at the
+                //bottom left to white at the top right AND DRAWS RED if the encoding and decoding
+                //code doesn't return the original index...
+                               
+                //Note: When a pixel that represents a color is read from a texture, it comes in as 4 float
+                //components in the range 0/1 (even if they were originally uploaded as 4 byte components in
+                //the range 0/255)... So you have to convert it back to range 0/255...
+                //So, convert from 0/1 space to 0/255 space. Presumably, the card converted the original color
+                //by dividing by 255... We want to multiply by slightly more than 255 and then take the floor
+                //to account for possible floating point conversion inaccuracies...
+                //ADD YOUR FIRST LINE OF CODE HERE...
+ 
+                floatLightIndices = floor(floatLightIndices * 255.1);
+ 
+                vec4 floatLightTemp;
+               
+                //Convert the result from right to left (the following loop iterates from 3 to 1) and place
+                //the results in lightIndices [3], shift the input right, repeat and then store in lightIndices [2],
+                //etc.
+                for (int i = OVERLAP_LIGHTS-1; i >= 0; i--) {
+                        //Perform shift right 2 = divide by 4 = multiply by 0.25 and floor to get as close to integers
+                        //as possible without modifying the original.
+                       
+                        //Extract the 2 rightmost bits by subtracting the large value - the small shifted back left by 2 (multiply by 4)...
+                       
+                        floatLightTemp = floatLightIndices;
+ 
+                        floatLightTemp = floatLightTemp - (floor(floatLightTemp * 0.25) * 4);
+ 
+ 
+                        //Assemble the r/g/b/a components into one integer light index via r << 6 + g << 4 + b << 2 + a << 0.
+                        //Add a small bias 0.1 tp ensure it is slightly larger than the integer (we don't want to be slightly less)...
+                        //For example, if all the bits were 11 (i,e, 3), we get 3+3*4+3*16+3*64 = 3+12+48+192 = 255 => 255.1.
+ 
+                        lightIndices[i] = floor(floatLightTemp.x * 64 + floatLightTemp.y * 16 + floatLightTemp.z * 4 + floatLightTemp.w + 0.1);
+                       
+                        //Floor the value to eliminate the fractional part and save it...
+                       
+                        //Replace the original integer light indices by the shift right version so we can repeat on the rest...
+ 
+                        floatLightIndices = floatLightIndices * 0.25;
+                }
+                return;
+	#endif //EXPERIMENT
+}

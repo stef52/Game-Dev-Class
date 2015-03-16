@@ -1,0 +1,25 @@
+//Wilf's lighting library...
+
+//-------------------------------------------------------------------------------------
+
+//Utility routines...
+
+bool alignedWith (vec3 a, vec3 b) {//Vectors pointing in the same direction.
+	//Since A.B = |A||B|cos angle and cos (0 to 90 degrees) is positive; otherwise negative.
+	//In degrees, cos (0) = 1, cos (45) = 0.707, cos (90) = 0, cos (135) = -0.707, cos (180) = -1.
+	return dot (a, b) > 0.0;
+}
+bool alignedAgainst (vec3 a, vec3 b) {return !alignedWith (a, b);}
+
+
+vec3 vectorProjection (vec3 A, vec3 normalizedB) {
+	//Projection of vector A onto normalized vector B.
+	//If angle between A and B is theta, proj of A on unit vector B is A's shadow 
+	//	= |A|cos (theta) = |A||B|cos (theta) (since |B|=1) = A.B
+	return dot (A, normalizedB) * normalizedB; //The projection is in the direction of B...
+}
+
+vec3 vectorShadow (vec3 A, vec3 normalizedB) {return vectorProjection (A, normalizedB);}
+vec3 vectorHeight (vec3 A, vec3 normalizedB) {return A - vectorShadow (A, normalizedB);}
+
+float squaredDistance (vec3 point1, vec3 point2) {vec3 delta = point2 - point1; return dot (delta, delta);}
