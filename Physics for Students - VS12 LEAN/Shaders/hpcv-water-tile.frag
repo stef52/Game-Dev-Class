@@ -1,214 +1,147 @@
-#version 120
+#version 130
+
 //
 // Fragment shader, Tiled Directional Flow
-//
-// (c) 2010 frans van hoesel, university of groningen
-//
-//
-// this shader creates animated water by transforming normalmaps
-// the scaling and rotation of the normalmaps is done per tile
-// and is constant per tile. Each tile can have its own parameters
-// for rotation, scaling, and speed of translation
-// To hide the seams between the tiles, all seams have another tile
-// centered over the seam. The opacity of the tiles decreases towards the
-// edge of the tiles, so the edge isn't visible at all.
-// Basically, all points have four tiles (A,B,C and D), mixed together
-// (although at the edges the contribution of a tile to this mix is 
-// reduced to zero).
-// The mixing of the tiles each with different parameters gives a nice
-// animated look to the water. It is no longer just sliding in one direction, but
-// appears to move more like real water. 
 
-// The resulting sum of normalmaps, is used to calculate the refraction of the clouds 
-// in a cube map and can also be used for other nice effects. In this example the 
-// colormap of the material under water is distorted to fake some kind of refraction
-// (for this example the water is a bit too transparent, but it shows this refraction
-// better) 
-
-// A flowmap determines in the red and green channel the normalized direction of the
-// flow and in the blue channel wavelength.
-// The alpha channel is used for the transparency of the water. Near the edge, the 
-// water becomes less deep and more transparent. Also near the edge, the waves tend
-// to be smaller, so the same alpha channel also scales the height of the waves.
-// Currently the wavelength is in its own channel (blue), but could be premultiplied
-// to the red and green channels. This makes this channel available for changing the 
-// speed of the waves per tile.
-
-
-// Further improvements
-// Besides the obvious improvements mentioned in the code (such as premultiplying
-// the direction of the waves with the scale, or moving the texscale multiplication
-// to the texture coordinates), one could get rid of tiling in this code and pass it 
-// tiled geometry. This way the whole lookup of the flowmap (which is constant over 
-// each tile) could be moved to the vertexshader, removing the the construction of 
-// the flow rotation matrix. As this is done 4 times per pixel, it might give a big 
-// performance boost (one does need to pass on 4 constant matrices to the fragment
-// shader, which will cost you a bit of performance).
-// 
-//////////////////////////////////////////////////////////////////////////////////
-//                     This software is Creditware:
-//
-// you can do whatever you want with this shader except claiming rights 
-// you may sell it, but you cannot prevent others from selling it, giving it away 
-// or use it as they please.
-// 
-// Having said that, it would be nice if you gave me some credit for it, when you
-// use it.
-//
-//                     Frans van Hoesel, (c) 2010
-//////////////////////////////////////////////////////////////////////////////////
-
-
-// movie at youtube: http://www.youtube.com/watch?v=TeSuNYvXAiA?hd=1 (in Germany this is blocked by youtube)
-// making of at http://www.youtube.com/watch?v=wdcvPegJ1lw&hd=1 (works even in Germany)
-
-// Thanks to Bart Campman, Pjotr Svetachov and Martijn Kragtwijk for their help.
+// Wilf LaLonde's much simplified variation of the shader developed
+// in 2010 by frans van hoesel, university of groningen.
 
 uniform sampler2D normalMap;
-
 uniform sampler2D colorMap;
 uniform sampler2D flowMap;
 uniform samplerCube cubeMap;
 
-varying vec3  Normal;
-varying vec3  EyeDir;
+in vec3  Normal;
+in vec3  EyeDir;
 
-varying vec2 texNormal0Coord;
-varying vec2 texColorCoord;
-varying vec2 texFlowCoord;
+in vec2 texNormal0Coord;
+in vec2 texColorCoord;
+in vec2 texFlowCoord;
 
-varying float myTime;
 
-void main (void)
-{
+out vec4 finalColor; 
 
-		// texScale determines the amount of tiles generated.
-    float texScale = 35.0;
-    // texScale2 determines the repeat of the water texture (the normalmap) itself
-    float texScale2 = 10.0; 
-    float myangle;
-    float transp;
-    vec3 myNormal;
+in float myTime;
 
-    vec2 mytexFlowCoord = texFlowCoord * texScale;
-    // ff is the factor that blends the tiles.
- 	  vec2 ff =  abs(2*(fract(mytexFlowCoord)) - 1) -0.5; 	  
-    // take a third power, to make the area with more or less equal contribution
-    // of more tile bigger
-	  ff = 0.5-4*ff*ff*ff;
-	  // ffscale is a scaling factor that compensates for the effect that
-	  // adding normal vectors together tends to get them closer to the average normal
-	  // which is a visible effect. For more or less random waves, this factor
-	  // compensates for it 
-	  vec2 ffscale = sqrt(ff*ff + (1-ff)*(1-ff));
-    vec2 Tcoord = texNormal0Coord  * texScale2;
-    
-    // offset makes the water move
-		vec2 offset = vec2(myTime,0);
-    
-    // I scale the texFlowCoord and floor the value to create the tiling
-    // This could have be replace by an extremely lo-res texture lookup
-    // using NEAREST pixel.
-    vec3 sample = texture2D( flowMap, floor(mytexFlowCoord)/ texScale).rgb;
-    
-    // flowdir is supposed to go from -1 to 1 and the line below
-    // used to be sample.xy * 2.0 - 1.0, but saves a multiply by
-    // moving this factor two to the sample.b
-    vec2 flowdir = sample.xy -0.5;    
-   
-    // sample.b is used for the inverse length of the wave
-    // could be premultiplied in sample.xy, but this is easier for editing flowtexture
-    flowdir *= sample.b;
-    
-    // build the rotation matrix that scales and rotates the complete tile
-    mat2 rotmat = mat2(flowdir.x, -flowdir.y, flowdir.y ,flowdir.x);
-    
-    // this is the normal for tile A
-    vec2 NormalT0 = texture2D(normalMap, rotmat * Tcoord - offset).rg;
-    
-    // for the next tile (B) I shift by half the tile size in the x-direction
-    sample = texture2D( flowMap, floor((mytexFlowCoord + vec2(0.5,0)))/ texScale ).rgb;
-    flowdir = sample.b * (sample.xy - 0.5);
-    rotmat = mat2(flowdir.x, -flowdir.y, flowdir.y ,flowdir.x);
-	  // and the normal for tile B...
-	  // multiply the offset by some number close to 1 to give it a different speed
-	  // The result is that after blending the water starts to animate and look
-	  // realistic, instead of just sliding in some direction.
-	  // This is also why I took the third power of ff above, so the area where the
-	  // water animates is as big as possible
-	  // adding a small arbitrary constant isn't really needed, but helps to show
-	  // a bit less tiling in the beginning of the program. After a few seconds, the
-	  // tiling cannot be seen anymore so this constant could be removed.
-	  // For the quick demo I leave them in. In a simulation that keeps running for
-	  // some time, you could just as well remove these small constant offsets
-	  vec2 NormalT1 = texture2D(normalMap, rotmat * Tcoord - offset*1.06+0.62).rg ; 
-	  
-	  // blend them together using the ff factor
-	  // use ff.x because this tile is shifted in the x-direction 
-	  vec2 NormalTAB = ff.x * NormalT0 + (1-ff.x) * NormalT1;
-    
-    // the scaling of NormalTab and NormalTCD is moved to a single scale of
-    // NormalT later in the program, which is mathematically identical to
-	  // NormalTAB = (NormalTAB - 0.5) / ffscale.x + 0.5;
-	  
-	  // tile C is shifted in the y-direction 
-    sample = texture2D( flowMap, floor((mytexFlowCoord + vec2(0.0,0.5)))/ texScale ).rgb;
-    flowdir = sample.b * (sample.xy - 0.5);
-    rotmat = mat2(flowdir.x, -flowdir.y, flowdir.y ,flowdir.x);	      
-    NormalT0 = texture2D(normalMap, rotmat * Tcoord - offset*1.33+0.27).rg;
-	   
-	  // tile D is shifted in both x- and y-direction
-	  sample = texture2D( flowMap, floor((mytexFlowCoord + vec2(0.5,0.5)))/ texScale ).rgb;
-    flowdir = sample.b * (sample.xy - 0.5);
-    rotmat = mat2(flowdir.x, -flowdir.y, flowdir.y ,flowdir.x);
-	  NormalT1 = texture2D(normalMap, rotmat * Tcoord - offset*1.24).rg ;
-	   
-	  vec2 NormalTCD = ff.x * NormalT0 + (1-ff.x) * NormalT1;
-	  // NormalTCD = (NormalTCD - 0.5) / ffscale.x + 0.5;
-    
-    // now blend the two values together
-	  vec2 NormalT = ff.y * NormalTAB + (1-ff.y) * NormalTCD;
-	  
-	  // this line below used to be here for scaling the result
-	  //NormalT = (NormalT - 0.5) / ffscale.y + 0.5;
+//NOTES: normalMap is a noise texture of normals (see drawNormalMap)... It seems to be built-in to OpenSceneGraph!!!
 
-	  // below the new, direct scaling of NormalT
-    NormalT = (NormalT - 0.5) / (ffscale.y * ffscale.x);
-    // scaling by 0.3 is arbritrary, and could be done by just
-    // changing the values in the normal map
-    // without this factor, the waves look very strong
-    NormalT *= 0.3; 
-     // to make the water more transparent 
-    transp = texture2D( flowMap, texFlowCoord ).a;
-    // and scale the normals with the transparency
-    NormalT *= transp*transp;
+
+#define flowTileFactor 35.0
+#define normalFlowTileFactor 10.0
+
+vec2 tile (vec2 uv, float tiles) {return floor (uv) / tiles;}
+
+vec2 sampleFlowVector (vec2 uv) {
+   //Note 1: r is x-direction, g is y-direction, b is DOUBLE the velocity in wavelengths, 
+   //a is alpha (if there is some, its water).
+
+   //Note 2: Let a:b denote a number in the range a to b. 
+
+   //Normally, a UNIT VECTOR n in the range -1:+1 would have been encoded as m = 0.5*(n+1) 
+   //to map to range 0.5 * (-1:+1 + 1) = 0.5 * (0:2) = 0:1 and decoded as 2m-1 to map back; 
+   //i.e., from range 2(0:1)-1=(0:2)-1= -1:+1.
+
+   //A SCALED VECTOR of length v is then obtained by multiplying the unit vector by v; i.e. v*(2m-1).
+   //But v*(2m-1) = 2v*(m-0.5) which means that by storing 2v in the ".b" component of the vector,
+   //we can decode THE UNIT VECTOR via (m-0.5) instead of (2m-1)...
+
+   vec4 pixel = texture2D (flowMap, uv).rgba;
+   return pixel.b * (pixel.rg - 0.5);
+}
+#define sampleFlowAlpha(uv) (texture2D (flowMap, uv).a)
+
+vec2 sampleFlowVector (vec2 uv, float tiles, vec2 tileOffset) {//at tile vertex...
+   return sampleFlowVector (tile (uv + tileOffset, tiles));
+}
+
+#define time (myTime * 2.0) /*It's deciseconds...*/
+
+vec2 sampleDynamicNormal (vec2 scaledFlowCoordinate, vec2 flowVector) {
+    //Rotate to the flow vector and then scroll vertically by the scale factor and time...
+    //float scale = 1.0 - (2.0 * length (flowVector)); //flowVector = normalize (flowVector);
+    float scale = length (flowVector); 
+    mat2 rotationMatrix = mat2 (flowVector.y, flowVector.x, -flowVector.x, flowVector.y);
+    //return texture2D (normalMap, rotationMatrix * scaledFlowCoordinate - vec2 (0.0, time * scale * 2.0)).rg * sqrt (abs (scale)) * 2.0;
+    return texture2D (normalMap, rotationMatrix * scaledFlowCoordinate - vec2 (0.0, time * scale * 2.0)).rg;
+}
+
+#define lerp mix
+
+vec2 interpolateQuad (vec2 A, vec2 B, vec2 C, vec2 D, vec2 position) {
+   //Position.x ranges from 0 to 1 from A to B and C to D and position.y ranges from 0 to 1 from A to C and B to D.
+   vec2 AB = lerp (A, B, position.x);
+   vec2 CD = lerp (C, D, position.x);
+   vec2 ABCD = lerp (AB, CD, position.y);
+   return ABCD;
+} 
+
+vec4 waterColor (float alpha, vec2 normal2D, float normalMapScale) {
+    //A straightforward excapsulation of the code found in frans van hoesel's shader...
+
+    //To make the water more transparent, scale the normal with the transparency
+    normal2D *= 0.3 * alpha * alpha;
  
-    // assume normal of plane is 0,0,1 and produce the normalized sum of adding NormalT to it
-    myNormal = vec3(NormalT,sqrt(1-NormalT.x*NormalT.x - NormalT.y*NormalT.y));
+    //Assume the normal of plane is 0,0,1 and produce the normalized sum of adding normal2D to it.
+    vec3 normal3D = vec3 (normal2D, sqrt (1.0 - dot (normal2D, normal2D)));
 
-    vec3 reflectDir = reflect(EyeDir, myNormal);
-    vec3 envColor = vec3 (textureCube(cubeMap, -reflectDir)); 
+    vec3 reflectDirection = reflect (EyeDir, normal3D);
+    vec3 envColor = vec3 (textureCube (cubeMap, -reflectDirection)); 
     
-    // very ugly version of fresnel effect
-    // but it gives a nice transparent water, but not too transparent
-    myangle = dot(myNormal,normalize(EyeDir));
-    myangle = 0.95-0.6*myangle*myangle;
+    //Very ugly version of fresnel effect but it gives a nice transparent water, but not too transparent.
+    float myangle = dot (normal3D, normalize (EyeDir));
+    myangle = 0.95 - 0.6 * myangle * myangle;
     
-    // blend in the color of the plane below the water	
+    //Blend in the color of the plane below the water	
     
-    // add in a little distortion of the colormap for the effect of a refracted
+    //Add in a little distortion of the colormap for the effect of a refracted
     // view of the image below the surface. 
     // (this isn't really tested, just a last minute addition
     // and perhaps should be coded differently
     
-    // the correct way, would be to use the refract routine, use the alpha channel for depth of 
+    //The correct way, would be to use the refract routine, use the alpha channel for depth of 
     // the water (and make the water disappear when depth = 0), add some watercolor to the colormap
     // depending on the depth, and use the calculated refractdir and the depth to find the right
     // pixel in the colormap.... who knows, something for the next version
-    vec3 base = texture2D(colorMap,texColorCoord + vec2 (myNormal/texScale2*0.03*transp)).rgb;
-    gl_FragColor = vec4 (mix(base,envColor,myangle*transp),1.0 );
+    vec3 base = texture2D (colorMap, texColorCoord + vec2 (normal3D * (0.03*alpha/normalMapScale))).rgb;
+    return vec4 (lerp (base,envColor, myangle*alpha), 1.0);
+}
 
-		// note that smaller waves appear to move slower than bigger waves
-		// one could use the tiles and give each tile a different speed if that
-		// is what you want 
+
+vec4 perPixelFlowColor (vec2 textureFlowCoord, vec2 scaledNormalFlowCoordinate) {
+    //Just to see what happens if we don't use tiling...
+    vec2 flow = sampleFlowVector (textureFlowCoord);
+    vec2 normal = sampleDynamicNormal (scaledNormalFlowCoordinate, flow); 
+    float alpha = sampleFlowAlpha (textureFlowCoord); 
+    return vec4 (normal * alpha, 0.0, 1.0);
+}
+
+
+void main () {
+    //gl_FragColor = vec4 (texNormal0Coord, 0, 1); return; //0 to 1 in x, 0 to 1 in y.
+    //gl_FragColor = vec4 (texColorCoord, 0, 1); return; //0 to 1 in x, 0 to 1 in y.
+    //gl_FragColor = vec4 (texFlowCoord, 0, 1); return; //0 to 1 in x, 0 to 1 in y.
+
+    const bool drawTiling = false;
+    vec2 scaledFlowCoordinate = texFlowCoord * flowTileFactor;
+
+    if (drawTiling && (fract (scaledFlowCoordinate).x < 0.02 || fract (scaledFlowCoordinate).y < 0.02)) {
+	finalColor = vec4 (1,0,0,1); return;
+    }
+
+    vec2 flowA = sampleFlowVector (scaledFlowCoordinate, flowTileFactor, vec2 (0.0, 0.0));
+    vec2 flowB = sampleFlowVector (scaledFlowCoordinate, flowTileFactor, vec2 (1.0, 0.0));
+    vec2 flowC = sampleFlowVector (scaledFlowCoordinate, flowTileFactor, vec2 (0.0, 1.0));
+    vec2 flowD = sampleFlowVector (scaledFlowCoordinate, flowTileFactor, vec2 (1.0, 1.0));
+
+    vec2 scaledNormalFlowCoordinate = texFlowCoord * normalFlowTileFactor;
+    vec2 normalA = sampleDynamicNormal (scaledNormalFlowCoordinate, flowA); 
+    vec2 normalB = sampleDynamicNormal (scaledNormalFlowCoordinate, flowB); 
+    vec2 normalC = sampleDynamicNormal (scaledNormalFlowCoordinate, flowC); 
+    vec2 normalD = sampleDynamicNormal (scaledNormalFlowCoordinate, flowD); 
+
+    float alpha = sampleFlowAlpha (texFlowCoord);
+    vec2 normal2D = interpolateQuad (normalA, normalB, normalC, normalD, fract (scaledFlowCoordinate));
+    //gl_FragColor = perPixelFlowColor (texFlowCoord, scaledNormalFlowCoordinate); return; //Just to see per pixel flow...
+
+    finalColor = waterColor (alpha, normal2D, normalFlowTileFactor);
 }

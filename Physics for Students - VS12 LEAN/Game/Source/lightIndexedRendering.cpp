@@ -370,7 +370,7 @@ void drawLitWorld (World *world) {
 	ENABLE_SHADERS;
 }
 
-void drawWater() {
+/*void drawWater() {
 	waterShader->activate();
 
 	time += DT;
@@ -397,7 +397,7 @@ void drawWater() {
 	unitSolidFace->draw();
 	glPopMatrix();
 }
-
+*/
 
 void drawAllLightFuzzBalls () {
 	//Draw each light as a sprite without z-writing...
@@ -618,7 +618,7 @@ void drawColoredLights(World *world) {
 	drawAllLightFuzzBalls();
 
 
-	drawWater();
+	//drawWater();
 
 	glDepthMask(GL_TRUE); //Restore to our default of depth writing...
 
@@ -705,47 +705,4 @@ void wrapupColoredLights () {
 	glDeleteFramebuffers (1, &lightIndexedFrameBufferID);  
 	glDeleteRenderbuffers (1, &lightIndexedDepthBufferID);
 	glDeleteTextures (1, &lightIndexedColorBufferID);
-}
-
-
-void buildRawCubeMapFromFile(GLuint &textureID, const char *folder, const char *fileName) {
-	//Builds a cube map from 6 textures with prefixes "p_x_", "n_x_", ..y.., ..z..; Currently, only handles RGBA8 textures...
-	long width, height;
-	if (!Texture::readTextureExtent(asString("%s%s%s", folder, "p_x_", fileName), width, height)) {//Not able to get the extent.
-		halt("\nCould not find file \"%s\"...", asString("%s%s%s", folder, "p_x_", fileName)); textureID = 0; return;
-	}
-	//Load the 6 cube map textures into individual texture object (in memory, not on the graphics card).
-	Texture *textures[6]; const char *prefixes[] = { "p_x_", "n_x_", "p_y_", "n_y_", "p_z_", "n_z_" };
-	for (long index = 0; index < 6; index++) {
-		textures[index] = Texture::readTexture(asString("%s%s%s", folder, prefixes[index], fileName));
-	}
-
-	//Build the cube map and upload the texture bytes onto the graphics card.
-
-	//Build the cube map: Like buildRawTextures but without executing glTexImage2D...
-	long howMany = 1; GLuint *textureIDs = &textureID;
-	long kind = GL_TEXTURE_CUBE_MAP; long format = GL_RGBA8; long components = GL_RGBA; long filter = GL_LINEAR;
-	glGenTextures(howMany, textureIDs);
-	for (long index = 0; index < howMany; index++) {
-		GLuint textureID = textureIDs[index];
-		glBindTexture(kind, textureID);
-		glTexParameterf(kind, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameterf(kind, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameterf(kind, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-		glTexParameteri(kind, GL_TEXTURE_MAG_FILTER, filter); //GL_NEAREST or GL_LINEAR
-		glTexParameteri(kind, GL_TEXTURE_MIN_FILTER, filter); //GL_NEAREST or GL_LINEAR
-		::log("\nBuild raw texture %dx%d.", width, height);
-	}
-
-	//Upload the 6 sets of texture bytes...
-	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE);
-	for (long kind = GL_TEXTURE_CUBE_MAP_POSITIVE_X; kind <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z; kind++) {
-		glTexImage2D(kind, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-			textures[kind - GL_TEXTURE_CUBE_MAP_POSITIVE_X]->bytes);
-	}
-
-	//Discard the textures that were temporarily built...
-	for (long index = 0; index < 6; index++) {
-		delete textures[index];
-	}
 }

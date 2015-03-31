@@ -12,8 +12,24 @@
 Game *game = NULL;
 double DT; 
 
-HDC Game::deviceContext; GLuint Game::fontBase; 
+Choice choice = UseWater;
+
+Shader *ShaderForWater = NULL;
+Texture *waterText = NULL,
+*waterColor = NULL,
+*waterFlow = NULL,
+*lavaFlow = NULL;
+GLuint	waterID = 0,
+waterColorID = 0,
+waterFlowID = 0,
+waterCubeMapID = 0,
+lavaCubeMapID = 0,
+lavaFlowID = 0;
+float ticks = 0;
+
+HDC Game::deviceContext; GLuint Game::fontBase;
 const bool useLights = false;
+//Choice choice = UseWater;
 
 void setupOpenGL () {
 	glEnable (GL_CULL_FACE); glEnable (GL_DEPTH_TEST); glEnable (GL_TEXTURE_2D);
@@ -94,8 +110,19 @@ void Game::setup () {
 	World::setup ();
 	FaceGroup::setup ();
 	Shader::setup ();
-	setupColoredLights();
-	setupShadows();
+	//setupColoredLights();
+	//setupShadows();
+
+	if (choice == UseShadows)
+	{
+		setupShadows();
+	}
+	if (choice == UseIndexedLights || choice == UseShadowsAndIndexedLights)
+	{
+		setupColoredLights();
+	}
+
+	setupWater();
 }
 
 void Game::wrapup () {
@@ -113,7 +140,23 @@ void Game::wrapup () {
 	wrapupShadows();
 	delete physicsManager;
 	::log ("\nEnding game...\n\n");
+	wrapupWater();
 }
+
+void Game::wrapupWater()
+{
+	glDeleteTextures(1, &waterID);
+	glDeleteTextures(1, &waterColorID);
+	glDeleteTextures(1, &waterFlowID);
+	glDeleteTextures(1, &waterCubeMapID);
+	glDeleteTextures(1, &lavaCubeMapID);
+
+	ShaderForWater->unload();
+
+	delete ShaderForWater;
+
+}
+
 
 void Game::tick () {
 	inputManager->tick ();
@@ -125,7 +168,69 @@ void Game::tick () {
 	}
 	if (world != NULL) world->tick ();
 
-	tickColoredLights();
+	if (drawingChoice == UseIndexedLights)
+	{
+		tickColoredLights();
+	}
+	tickWater();
+}
+
+void Game::setupWater()
+{
+	waterText = Texture::readTexture("..\\Textures\\flow\\normal.bmp");
+	waterText->load();
+	waterID = waterText->textureHandle;
+
+	waterColor = Texture::readTexture("..\\Textures\\flow\\clearback.tga");
+	waterColor->load();
+	waterColorID = waterColor->textureHandle;
+
+	waterFlow = Texture::readTexture("..\\Textures\\flow\\flow.tga");
+	waterFlow->load();
+	waterFlowID = waterFlow->textureHandle;
+
+	lavaFlow = Texture::readTexture("..\\Textures\\flow\\lava.tga");
+	lavaFlow->load();
+	lavaFlowID = lavaFlow->textureHandle;
+
+	buildRawCubeMapFromFile(waterCubeMapID, "..\\Textures\\Flow\\", "sky.tga");
+
+	buildRawCubeMapFromFile(lavaCubeMapID, "..\\Textures\\Flow\\", "lava.tga");
+
+	ShaderForWater = new Shader("hpcv-water-tile");
+	ShaderForWater->load();
+}
+
+void Game::tickWater()
+{
+	ticks += DT;
+	//set shader uniforms
+	ShaderForWater->activate();
+	ShaderForWater->setUniform1f("osg_FrameTime", ticks);
+	ShaderForWater->setUniformMatrix4fv("osg_ViewMatrixInverse", (float*)(&(camera->cameraMatrix)));
+
+	//setup shader to accept textures
+	glActiveTexture(GL_TEXTURE16);
+	glBindTexture(GL_TEXTURE_2D, waterID);
+	ShaderForWater->setUniformTexture("normalMap", 16);
+
+	glActiveTexture(GL_TEXTURE17);
+	glBindTexture(GL_TEXTURE_2D, waterColorID);
+	ShaderForWater->setUniformTexture("colorMap", 17);
+
+	glActiveTexture(GL_TEXTURE18);
+	glBindTexture(GL_TEXTURE_2D, waterFlowID);
+	ShaderForWater->setUniformTexture("flowMap", 18);
+
+	glActiveTexture(GL_TEXTURE19);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, waterCubeMapID);
+	ShaderForWater->setUniformTexture("cubeMap", 19);
+
+
+	//ShaderForWater->setUniformTexture("cubeMap", 20);
+
+
+	glActiveTexture(GL_TEXTURE0);
 }
 
 void Game::drawTeapots () {
@@ -146,46 +251,75 @@ void Game::drawTeapots () {
 }
 
 bool disableShaders = false;
-Choice choice = UseIndexedLights;
-void Game::draw () {
+void Game::draw() {
 	//If there is no world, draw a teapot; otherwise, draw the world...
 	//Neither the input manager nor the camera draws itself...
-	
-	camera->beginCamera ();
-		if (world == NULL) { 
-			drawTeapots ();
-		} else {
-			switch (drawingChoice) 
-			{
-				case NormalOnly:
-				{
-					if (drawFuzzBallsInNormalDraw) { drawAllLightFuzzBallsInNormalWorld(); }
-					else if (drawLightSpheresInNormalDraw) { drawAllLightSpheresInNormalWorld(); }
 
-					world->draw();
-					break; 
-				}
-				case UseShadows: 
-				{
-					world->draw();
-					break; 
-				}
-				case UseIndexedLights: 
-				{
-					drawColoredLights(world);
-					break; 
-				}
-				case UseShadowsAndIndexedLights: 
-				{
-					world->draw();
-					break; 
-				}
-			};
+	camera->beginCamera();
+
+	if (world == NULL)
+	{
+		drawTeapots();
+	}
+	else
+	{
+		switch (drawingChoice)
+		{
+		case NormalOnly:
+			world->draw();
+
+			if (drawFuzzBallsInNormalDraw)
+			{
+				drawAllLightFuzzBallsInNormalWorld();
+			}
+
+			if (drawLightSpheresInNormalDraw)
+			{
+				drawAllLightSpheresInNormalWorld();
+			}
+			if (choice == UseWater)
+			{
+				world->draw();
+				tickWater();
+
+				if (!disableShaders)
+					ShaderForWater->activate();
+
+				Transformation trans = Transformation::lookAtForObject(Point(-70, -6, 0), Vector(0, -1, 0), Vector(0, 0, -1), Vector(1, 0, 0));
+				glPushMatrix();
+				glMultMatrixf(trans);
+				glScaled(200, 200, 1);
+				unitSolidFace->draw();
+				glPopMatrix();
+
+				glActiveTexture(GL_TEXTURE19);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, lavaCubeMapID);
+				trans = Transformation::lookAtForObject(Point(-32.5, 33, -52.6), Vector(0, -1, 0), Vector(0, 0, -1), Vector(1, 0, 0));
+				glPushMatrix();
+				glMultMatrixf(trans);
+				glScaled(9, 9, 1);
+				unitSolidFace->draw();
+				glPopMatrix();
+			}
+			break;
+		case UseShadows:
+			world->draw();
+			break;
+		case UseIndexedLights:
+			drawColoredLights(world);
+			break;
+		case UseShadowsAndIndexedLights:
+			world->draw();
+			break;
 		}
-		player->draw ();
-	camera->endCamera ();
-	drawFrameRate ();
-	drawHelp ();
+
+
+	}
+
+	player->draw();
+	camera->endCamera();
+	drawFrameRate();
+	drawHelp();
 }
 
 void Game::setupFont () {
@@ -321,14 +455,15 @@ void Game::drawHelp () {
 }
 
 
+Shader *shadowDrawWhatLightSees = NULL;
+
 void Game::setupShadows() {
+	shadowDrawWhatLightSees = new Shader("shadowDrawWhatLightSees");
+	shadowDrawWhatLightSees->load();
+
 	buildRawFrameBuffers(1, &shadowMapFrameBufferID);
 	buildRawShadowMapDepthBuffer(1, &shadowMapDepthBufferID, screenWidth, screenHeight);
-	
-	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBufferID);
-	//attachShadowMapDepthTexture(shadowMapDepthBufferID);
 
-//	glDrawBuffers(0, NULL); //Use no color textures...
 }
 /*
 Shader *shadowDrawWhatLightSees = NULL;
