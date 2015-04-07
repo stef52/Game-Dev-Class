@@ -25,6 +25,9 @@
     <Filter Include="Shaders\light">
       <UniqueIdentifier>{e447bff0-4c86-4e3b-a76b-16f53f0afbda}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\AO">
+      <UniqueIdentifier>{df200b1a-cf2d-49b5-9b92-187979da863c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\boundingBox.cpp">
@@ -303,6 +306,33 @@
     </None>
     <None Include="..\Shaders\wilf-lalonde-water-tile.frag">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\buildMRTTextures.frag">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\buildMRTTextures.vert">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\downsample.frag">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\downsample.VERT">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\sharpen.frag">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\sharpen.VERT">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\upsample.frag">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\upsample.VERT">
+      <Filter>Shaders\AO</Filter>
+    </None>
+    <None Include="..\Shaders\AOshaders\WilfAmbientOcclusionLibrary.all">
+      <Filter>Shaders\AO</Filter>
     </None>
   </ItemGroup>
 </Project>

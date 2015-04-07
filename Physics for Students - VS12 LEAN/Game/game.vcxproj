@@ -194,6 +194,15 @@
     <ClInclude Include="Source\world.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Shaders\AOshaders\buildMRTTextures.frag" />
+    <None Include="..\Shaders\AOshaders\buildMRTTextures.vert" />
+    <None Include="..\Shaders\AOshaders\downsample.frag" />
+    <None Include="..\Shaders\AOshaders\downsample.VERT" />
+    <None Include="..\Shaders\AOshaders\sharpen.frag" />
+    <None Include="..\Shaders\AOshaders\sharpen.VERT" />
+    <None Include="..\Shaders\AOshaders\upsample.frag" />
+    <None Include="..\Shaders\AOshaders\upsample.VERT" />
+    <None Include="..\Shaders\AOshaders\WilfAmbientOcclusionLibrary.all" />
     <None Include="..\Shaders\ColoringShaders\decodeLightIndices.function" />
     <None Include="..\Shaders\ColoringShaders\defaultLighting.frag" />
     <None Include="..\Shaders\ColoringShaders\defaultLighting.vert" />

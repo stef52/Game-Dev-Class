@@ -1,0 +1,173 @@
+//Wilf's library for ambient occlusion experiments...
+
+//interpolate (a, b, t) gives a for t = 0 and b for t = 1 and blends otherwise...
+#define interpolate mix
+#define clamp01(x) clamp (x, 0.0, 1.0)
+
+vec3 HACKambientOcclusion (vec2 uv, vec4 basePosition, vec3 baseNormal, sampler2DRect positionTexture, sampler2DRect normalTexture) {
+	//Return the result in pieces (occlusion / occlusionCount, occlusion, occlusionCount)... 
+	basePosition = texture2DRect (positionTexture, uv);
+	baseNormal =  texture2DRect (normalTexture, uv).xyz;
+
+	//Let's just use something simple like: If it's close, occlusion is low; otherwise, high.
+	float t = clamp01 (abs (basePosition.z) / 100.0); //0 => close (when z = 0); 1 => far (when z = 100).
+	float sampleOcclusion = t; //0 => close; 1 => far;
+	float sampleCount = 1.0;
+	return vec3 (sampleOcclusion / sampleCount, sampleOcclusion, sampleCount);
+}
+
+vec3 HACKedgePreserveUpsample (vec2 highRESuv, vec4 basePosition, vec3 baseNormal, sampler2DRect lowResNormTex, sampler2DRect lowResPosTex, sampler2DRect lowResAOTex) {
+	vec2 lowResUV = floor ((highRESuv) * 0.5) + vec2 (0.5, 0.5);
+	vec3 lowResAO = texture2DRect (lowResAOTex, lowResUV).xyz;
+	return lowResAO;
+}
+
+float squaredLength (vec3 vector) {return dot (vector, vector);}
+float squaredDistance (vec3 point1, vec3 point2) {return squaredLength (point1 - point2);}
+
+float ambientOcclusion (vec4 basePosition, vec3 baseNormal, vec4 position, vec4 normal, float cameraSpaceRadius /*dMaximum*/) {
+	//Computes the ambient occlusion of {position, normal} relative to {basePosition, baseNormal}.
+
+	//Compute the direction vector from the base point to the other point.
+	vec3 distanceVector = position.xyz - basePosition.xyz; 
+
+	//Compute the distance ratio clamped at cameraSpaceRadius...
+	//float distanceRatio = linearDistanceRatio (distanceVector, cameraSpaceRadius);
+	float distanceRatio = min (length (distanceVector) / cameraSpaceRadius, 1.0);
+//distanceRatio *= distanceRatio;
+
+	//Compute the POSITIVE ONLY cosine contribution. Note A.B = |A| |B| cos angle if |A| = |B| = 1...
+	float cosine = max (dot (baseNormal, normalize (distanceVector)), 0.0);
+
+	return (1.0 - distanceRatio) * cosine; 
+}
+
+float ambientOcclusion (vec2 uv, vec4 basePosition, vec3 baseNormal, sampler2DRect positionTexture, sampler2DRect normalTexture, float cameraSpaceRadius) {
+	//Version with samplers instead of {position, normal}...
+	vec4 position = texture2DRect (positionTexture, uv);
+	vec4 normal =  texture2DRect (normalTexture, uv);
+	return ambientOcclusion (basePosition, baseNormal, position, normal, cameraSpaceRadius);
+}
+
+vec3 poissonFilterAmbientOcclusion (vec2 uv, sampler2DRect positionTexture, sampler2DRect normalTexture, 
+	vec4 basePosition, vec3 baseNormal, float pixelSpaceRadius) {	
+	//Filter via a poisson disk and return the result in pieces (occlusion / occlusionCount, occlusion, occlusionCount)... 
+
+	const vec2 poissonDisk [16] = vec2 [16] (
+		vec2 (-0.6116678,  0.04548655), vec2 (-0.26605980, -0.6445347),
+		vec2 (-0.4798763,  0.78557830), vec2 (-0.19723210, -0.1348270),
+		vec2 (-0.7351842, -0.58396650), vec2 (-0.35353550,  0.3798947),
+		vec2 ( 0.1423388,  0.39469180), vec2 (-0.01819171,  0.8008046),
+		vec2 ( 0.3313283, -0.04656135), vec2 ( 0.58593510,  0.4467109),
+		vec2 ( 0.8577477,  0.11188750), vec2 ( 0.03690137, -0.9906120),
+		vec2 ( 0.4768903, -0.84335800), vec2 ( 0.13749180, -0.4746810),
+		vec2 ( 0.7814927, -0.48938420), vec2 ( 0.38269190,  0.8695006));
+
+	float radius = pixelSpaceRadius; //Shorter name
+
+	float occlusion = 0.0;  
+	for (int i = 0; i < 16; i++) {     
+		vec2 randomUV = uv + poissonDisk [i] * radius;
+		occlusion += ambientOcclusion (randomUV, basePosition, baseNormal, positionTexture, normalTexture, radius);
+	}
+	return vec3 (occlusion * (1.0 / 16.0), occlusion, 16.0);
+}
+
+//grid filter...
+vec3 gridFilterAmbientOcclusion (vec2 uv, sampler2DRect positionTexture, sampler2DRect normalTexture, 
+	vec4 basePosition, vec3 baseNormal, float pixelSpaceRadius) {
+
+	//Filter by sampling at odd pixel distances; i.e., 1, 3, 5, ... to the limit allowed
+	//and return the result in pieces (occlusion / occlusionCount, occlusion, occlusionCount)... 
+
+	float radius = pixelSpaceRadius; //Shorter name
+
+	int occlusionCount = 0; float occlusion = 0.0; 
+
+	for (float x = 1.0; x <= radius; x += 2.0) {
+		for (float y = 1.0; y <= radius; y += 2.0) {
+			occlusion += ambientOcclusion (uv + vec2 (x, y), basePosition, baseNormal, positionTexture, normalTexture, radius);
+			occlusion += ambientOcclusion (uv + vec2 (-x, y), basePosition, baseNormal, positionTexture, normalTexture, radius);
+			occlusion += ambientOcclusion (uv + vec2 (-x, -y), basePosition, baseNormal, positionTexture, normalTexture, radius);
+			occlusion += ambientOcclusion (uv + vec2 (x, -y), basePosition, baseNormal, positionTexture, normalTexture, radius);
+			occlusionCount += 4;
+		}
+	}
+
+	return vec3 (occlusion / occlusionCount, occlusion, occlusionCount);  
+}
+
+vec3 edgePreserveUpsample (vec2 highRESuv, vec4 basePosition, vec3 baseNormal, sampler2DRect loResNormTex, sampler2DRect loResPosTex, sampler2DRect loResAOTex) {
+	//Computes a weight average (AO1*W1+AO2*W2+AO3*W3+AO4*W4)/W where W=W1+W2+W3+W4 and each AO is a 
+	//triple of the form ((occlusion / occlusionCount, occlusion, occlusionCount)... 
+
+	//Note that downsampled values should be approximately equal to basePosition and baseNormal...
+	//So weigths will be approximately 1 most of the time and 0 when they are different...
+	const vec2 offsets [4] = vec2 [4] (
+		vec2 (-1.0,  1.0),
+		vec2 ( 1.0,  1.0),
+		vec2 (-1.0, -1.0),
+		vec2 ( 1.0, -1.0));
+		
+	float totalWeight = 0.0; vec3 combinedAO = vec3 (0.0);
+
+	for (int i = 0; i < 4; ++i) {
+		vec2 loResUV = floor ((highRESuv + offsets [i]) * 0.5) + vec2 (0.5, 0.5);
+
+		vec3 loRESNormal = texture2DRect (loResNormTex, loResUV).xyz;
+		float loResDepth = texture2DRect (loResPosTex, loResUV).z;
+		vec3 loResAO = texture2DRect (loResAOTex, loResUV).xyz;
+		    
+		//Compute 1 if normals almost equal, 0 otherwise... fuzzyEqualNormals (baseNormal, loRESNormal)
+		float normalWeight = (dot (loRESNormal, baseNormal) + 1.1) / 2.1;
+		normalWeight = pow (normalWeight, 8.0); //0.9 to power 8 is 0.43.
+	
+		//Compute 1 if depths almost equal, 0 otherwise... fuzzyEqualDepths (basePosition.z, loResDepth)
+		float depthWeight = 1.0 / (1.0 + abs (basePosition.z - loResDepth) * 0.2);
+		depthWeight = pow (depthWeight, 16.0);
+		
+		//Scale down the product of the weights by 0.14?
+		float weight = normalWeight * depthWeight * (9.0 / 16.0) /
+			(abs((highRESuv.x - loResUV.x * 2.0) * (highRESuv.y - loResUV.y * 2.0)) * 4.0);    
+		
+		totalWeight += weight; combinedAO += loResAO * weight;    
+	} 
+
+	combinedAO /= totalWeight; //Divide by almost 0 much of the time???
+	return combinedAO;
+}
+
+//Temporal processing...
+float temporalBlend (float confidence, float resolution, float ambientOcclusion, vec4 position, 
+	sampler2DRect oldPositionTexture, sampler2DRect oldAOTexture,
+	mat4 projection, mat4 modelViewInverseNow, mat4 modelViewOld) {
+
+	//Blend ambient occlusion at position with corresponding version in old position/AO textures
+	//using the transformations to perform the reverse reprojection... Note that position is
+	//in camera (view) space...
+	
+	//Compute the old position from the model view transformations.
+	vec4 oldPosition = modelViewOld * (modelViewInverseNow * position);
+
+	//To get screen space UV, we need to convert to perspective space which gives coordinate in range -1 to +1...
+	vec4 oldScreenSpacePosition = projection * oldPosition;
+	vec2 oldUV = oldScreenSpacePosition.xy / oldScreenSpacePosition.w;
+
+	//If offscreen, return the new value...
+	if (oldUV.x < -1.0 || oldUV.x > +1.0 || oldUV.y < -1.0 || oldUV.y > +1.0) return ambientOcclusion;
+
+	//But these coordinates are from -1 to +1 (not 0 to R-1) WHERE R = resolution...
+	oldUV += 1.0; //Now they range from +0 to +2.
+	oldUV *= (resolution - 1.0) * 0.5; //Now they range from +0 to +2*(R-1)*0.5; i.e., 0 to R-1.
+	//oldUV *= (resolution) * 0.5; //Now they range from +0 to +2*(R-1)*0.5; i.e., 0 to R-1.
+//	oldUV += 0.5; //Add half a pixel to be at the center of the pixel.
+	oldUV = floor (oldUV) + 0.5; //Add half a pixel to be at the center of the pixel.
+
+	//Finally, get the camera (view) space z which may be more accurate than oldPosition.z.
+	float oldPositionZ = texture2DRect (oldPositionTexture, oldUV).z;
+	if (abs (1.0 - oldPositionZ / position.z) > 0.01) return ambientOcclusion; //Too different to use...
+
+	//Use the confidence t value to determine the blend... Confidence = 1 means use all of new, 0 means none...
+	float oldAmbientOcclusion = texture2DRect (oldAOTexture, oldUV).x;
+	return interpolate (ambientOcclusion, oldAmbientOcclusion, confidence);
+}
