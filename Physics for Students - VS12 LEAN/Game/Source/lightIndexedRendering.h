@@ -89,3 +89,5 @@ void tickColoredLights();
 void drawColoredLights(World *world);
 
 void drawWater();
+void SetupAO();
+void WrapupAO();

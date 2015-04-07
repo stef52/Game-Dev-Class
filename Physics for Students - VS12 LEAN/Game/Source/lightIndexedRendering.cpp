@@ -940,13 +940,14 @@ void Downsample(int size, int index) {
 }
 
 //Draws the model.
+/*
 void DrawModel() {
 	//doFirstTime (logMatrices ("DRAW WORLD FOR AO"););
 	glPushMatrix();
 	glScalef(scale, scale, scale);
 	glCallList(modelList);
 	glPopMatrix();
-}
+}*/
 
 /* Initializes some OpenGL states */
 void GLInit() {
@@ -996,7 +997,8 @@ void BuildMRTTextures() {
 	glPushAttrib(GL_VIEWPORT_BIT);
 	glViewport(0, 0, RESOLUTION, RESOLUTION);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	DrawModel();
+	//DrawModel();
+	
 	glPopAttrib();
 }
 
@@ -1104,7 +1106,7 @@ void SetupAOSharpenPrograms() {
 
 	for (int i = LEVEL_COUNT - 1; i >= 0; --i) {
 		//Compile many times just so that each one can have a different orthographics matrix...
-		Shader *shader = sharpenShader[i] = new Shader("./src/shaders/sharpen");
+		Shader *shader = sharpenShader[i] = new Shader("../Shaders/AOshaders/sharpen");
 		shader->load();
 		aoSharpenProgram[i] = shader->handle();
 
@@ -1163,9 +1165,9 @@ void SetupUpsamplingShaders() {
 
 	float size = (float)RESOLUTION;
 	const bool original = WILF_version == ORIGINAL_VERSION; //WILF ADDITION
-	const char *FIRST = original ? "./src/shaders/oldUpsampleFirst" FRAG : "./src/shaders/upsample" FRAG;
-	const char *MIDDLE = original ? "./src/shaders/oldUpsampleMiddle" FRAG : "./src/shaders/upsample" FRAG;
-	const char *LAST = original ? "./src/shaders/oldUpsampleLast" FRAG : "./src/shaders/upsample" FRAG;
+	const char *FIRST = original ? "../Shaders/AOshaders/oldUpsampleFirst" FRAG : "../Shaders/AOshaders/upsample" FRAG;
+	const char *MIDDLE = original ? "../Shaders/AOshaders/oldUpsampleMiddle" FRAG : "../Shaders/AOshaders/upsample" FRAG;
+	const char *LAST = original ? "../Shaders/AOshaders/oldUpsampleLast" FRAG : "../Shaders/AOshaders/upsample" FRAG;
 
 	for (int i = 0; i < LEVEL_COUNT; ++i, size /= 2.0f) {
 		const char *SHADER_NAME = i == 0 ? LAST : (i == LEVEL_COUNT - 1 ? FIRST : MIDDLE); //WILF MODIFICATION
@@ -1218,7 +1220,7 @@ void SetupUpsamplingShaders() {
 //Setups the shader programs used in the downsampling step.
 void SetupDownsamplingShaders() {
 	for (int i = 1; i < LEVEL_COUNT; ++i) {
-		Shader *shader = downsampleShader[i] = new Shader("./src/shaders/downsample");
+		Shader *shader = downsampleShader[i] = new Shader("../Shaders/AOshaders/downsample");
 		const char *defaultMRT[] = { "Pos", "Norm" };
 		shader->load();//defaultAttributes, 3, defaultMRT, 2);
 		downsampleProgram[i] = shader->handle();
@@ -1251,7 +1253,7 @@ void SetupFBOs() {
 
 //Setup the shader program used in the buildMRTTextures step.
 void SetupMRTBuildingShaders() {
-	Shader *shader = buildMRTTexturesShader = new Shader("./src/shaders/buildMRTTextures");
+	Shader *shader = buildMRTTexturesShader = new Shader("../Shaders/AOshaders/buildMRTTextures");//..\\textures\\Flow\\normal.bmp
 	const char *defaultMRT[] = { "Pos", "Norm" };
 	shader->load();// defaultAttributes, 3, defaultMRT, 2);
 	buildMRTTexturesProgram = shader->handle();
@@ -1309,7 +1311,7 @@ void SetupRandRotationTexture() {
 
 
 //Global setup/wrapup...
-void Setup() {
+void SetupAO() {
 	Shader::setup();
 	//OLDSetupFBOs(); 
 	SetupFBOs();
@@ -1323,7 +1325,7 @@ void Setup() {
 	SetupAOSharpenPrograms();
 }
 
-void Wrapup() {
+void WrapupAO() {
 	log("\nExiting...\n");
 	delete buildMRTTexturesShader;
 	for (long index = 0; index < LEVEL_COUNT; index++) {

@@ -1,8 +1,8 @@
-#version 120
+#version 130
 #extension GL_ARB_texture_rectangle: enable
 #extension GL_EXT_gpu_shader4: enable
 
-#include "wilfAmbientOcclusionLibrary.all"
+#include "../Shaders/AOshaders/wilfAmbientOcclusionLibrary.all"
 
 //To do the following, we would have to expunge all routines using the unused uniforms...
 #define DISCARD_UNUSED_UNIFORMS 0

@@ -27,6 +27,8 @@ lavaCubeMapID = 0,
 lavaFlowID = 0;
 float ticks = 0;
 
+Shader *ShaderForAO = NULL;
+
 HDC Game::deviceContext; GLuint Game::fontBase;
 const bool useLights = false;
 //Choice choice = UseWater;
@@ -123,6 +125,8 @@ void Game::setup () {
 	}
 
 	setupWater();
+
+	SetupAO();
 }
 
 void Game::wrapup () {
@@ -141,6 +145,7 @@ void Game::wrapup () {
 	delete physicsManager;
 	::log ("\nEnding game...\n\n");
 	wrapupWater();
+	WrapupAO();
 }
 
 void Game::wrapupWater()
