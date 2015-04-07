@@ -44,6 +44,10 @@ public:
 	static void tickWater();
 	static void wrapupWater();
 
+	static void setupAO();
+	static void wrapupAO();
+
+
 private:
 	
 	bool helpOn;

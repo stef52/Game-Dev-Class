@@ -126,7 +126,7 @@ void Game::setup () {
 
 	setupWater();
 
-	SetupAO();
+	setupAO();
 }
 
 void Game::wrapup () {
@@ -145,7 +145,7 @@ void Game::wrapup () {
 	delete physicsManager;
 	::log ("\nEnding game...\n\n");
 	wrapupWater();
-	WrapupAO();
+	wrapupAO();
 }
 
 void Game::wrapupWater()
@@ -508,4 +508,12 @@ void Game::wrapupShadows(){
 void Game::tickShadows() {
 	GLfloat lightpos[] = { 0, 0, -1, 0 };
 	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);*/
+}
+
+void Game::setupAO(){
+
+}
+
+void Game::wrapupAO(){
+
 }
