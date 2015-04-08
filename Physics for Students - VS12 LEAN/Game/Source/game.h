@@ -36,9 +36,10 @@ public:
 
 	bool flyModeOn;
 
-	static void wrapupShadows();
+
+	static void wrapupShadowedLights();
 	static void setupShadows();
-	void tickShadows();
+	void tickShadowedLights();
 
 	static void setupWater();
 	static void tickWater();

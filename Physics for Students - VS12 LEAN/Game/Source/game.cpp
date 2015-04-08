@@ -142,7 +142,7 @@ void Game::wrapup () {
 	InputManager::wrapup();
 	World::wrapup();
 	wrapupColoredLights();
-	wrapupShadows();
+	wrapupShadowedLights();
 	delete physicsManager;
 	::log ("\nEnding game...\n\n");
 	wrapupWater();
@@ -469,7 +469,6 @@ void Game::setupShadows() {
 
 	buildRawFrameBuffers(1, &shadowMapFrameBufferID);
 	buildRawShadowMapDepthBuffer(1, &shadowMapDepthBufferID, screenWidth, screenHeight);
-
 }
 /*
 Shader *shadowDrawWhatLightSees = NULL;
@@ -488,29 +487,15 @@ void setupShadows(){
 	//glDrawBuffers(0,NULL);
 }*/
 
-void Game::wrapupShadows(){
-	/*
-	drawLightModelShader->unload(); delete drawLightModelShader;
-	drawWorldWithAllLightsShader->unload(); delete drawWorldWithAllLightsShader;
-	drawLightFuzzBallShader->unload(); delete drawLightFuzzBallShader;
-	drawZPrepassShader->unload(); delete drawZPrepassShader;
-	verificationShader->unload(); delete verificationShader;
-#if (CAPTURE_WORLD_POSITION_CS)
-	//Not yet done...
-#endif //CAPTURE_WORLD_POSITION_CS
+void Game::tickShadowedLights()
+{
 
-	delete allLightColors; delete allLightPositions; delete fuzzBall;
-
-	glDeleteFramebuffers(1, &lightIndexedFrameBufferID);
-	glDeleteRenderbuffers(1, &lightIndexedDepthBufferID);
-	glDeleteTextures(1, &lightIndexedColorBufferID);
 }
 
-void Game::tickShadows() {
-	GLfloat lightpos[] = { 0, 0, -1, 0 };
-	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);*/
-}
+void Game::wrapupShadowedLights()
+{
 
+}
 
 
 
