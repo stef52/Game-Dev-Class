@@ -27,6 +27,7 @@ waterCubeMapID = 0,
 lavaCubeMapID = 0,
 lavaFlowID = 0;
 float ticks = 0;
+const float scale = 1.0;
 
 Shader *ShaderForAO = NULL;
 Shader *buildMRTTexturesShader = NULL;
@@ -332,18 +333,18 @@ void Game::draw() {
 				}
 				
 
-	glPushAttrib (GL_VIEWPORT_BIT);  
-		glViewport (0, 0, RESOLUTION, RESOLUTION);
-		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		world->draw();
-	glPopAttrib();  
-				
+				glPushAttrib (GL_VIEWPORT_BIT);  
+				glViewport (0, 0, RESOLUTION, RESOLUTION);
+				glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				world->draw();
 
-				/*
 				glPushMatrix();
 				glScalef(scale, scale, scale);
-				glCallList(modelList);
-				glPopMatrix();*/
+				//glCallList(modelList);
+				glPopMatrix();
+
+				glPopAttrib();  
+				
 			}
 			break;
 		case UseShadows:
