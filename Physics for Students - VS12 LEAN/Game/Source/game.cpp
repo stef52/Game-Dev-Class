@@ -510,10 +510,192 @@ void Game::tickShadows() {
 	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);*/
 }
 
-void Game::setupAO(){
 
+
+
+#define LEVEL_COUNT 1
+#define RESOLUTION 800
+#define ORIGINAL_VERSION 0
+#define WILF_VERSION 1
+#define DISABLE_TEMPORAL_BLENDING 1
+#define DISCARD_UNUSED_UNIFORMS 1
+
+//#define WILF_version ORIGINAL_VERSION
+#define WILF_version WILF_VERSION
+#define PI 3.14159265
+
+//Shaders...
+Shader *buildMRTTexturesShader;
+Shader *downsampleShader[LEVEL_COUNT];
+Shader *upsampleShader[LEVEL_COUNT];
+Shader *sharpenShader[LEVEL_COUNT];
+
+// shader programs
+GLuint buildMRTTexturesProgram;
+GLuint downsampleProgram[LEVEL_COUNT];
+GLuint aoProgram[LEVEL_COUNT]; 
+GLuint aoSharpenProgram[LEVEL_COUNT];
+
+
+float gluOrtho[LEVEL_COUNT][16]; // orthogonal projection matrix
+
+#if (DISABLE_TEMPORAL_BLENDING) 
+#else
+const float dMax = 2.5f; // AO radius of influence (wilf: maximum camera-space sampling radius)
+float iMVMat[16]; // inverse model-view matrix
+float mVMat[16]; // model-view matrix
+#endif //DISABLE_TEMPORAL_BLENDING
+float projMat[16]; // perspective projection matrix
+
+
+const float rMax = 7.0; // maximum screen-space sampling radius
+const float fov = 65.238f;
+
+void SetupMRTBuildingShaders() {
+	Shader *shader = buildMRTTexturesShader = new Shader("../Shaders/AOshaders/buildMRTTextures");
+	const char *defaultMRT[] = { "Pos", "Norm" };
+	shader->load();//defaultAttributes, 3, defaultMRT, 2);
+	buildMRTTexturesProgram = shader->handle();
+}
+
+//Setups the shader programs used in the downsampling step.
+void SetupDownsamplingShaders() {
+	for (int i = 1; i < LEVEL_COUNT; ++i) {
+		Shader *shader = downsampleShader[i] = new Shader("../Shaders/AOshaders/downsample");
+		const char *defaultMRT[] = { "Pos", "Norm" };
+		shader->load();// defaultAttributes, 3, defaultMRT, 2);
+		downsampleProgram[i] = shader->handle();
+
+		//Shader output colors are called "Pos" and "Norm". 
+		shader->setUniformTexture("hiResPosTex", 0);
+		shader->setUniformTexture("hiResNormTex", 1);
+		shader->setUniformMatrix4fv("gluOrtho", gluOrtho[i]);
+	}
+}
+
+struct ShaderSetting {
+	bool usePoisson; bool useUpsampling; bool useTemporalSmoothing;
+};
+
+ShaderSetting computeShaderSetting(long levelCount) {
+	ShaderSetting setting;
+	setting.usePoisson = levelCount == 0;
+	setting.useUpsampling = levelCount < (LEVEL_COUNT - 1);
+	setting.useTemporalSmoothing = true;
+	return setting;
+}
+
+/* Setups the shader programs used in the AO computation steps */
+void SetupUpsamplingShaders() {
+	GLfloat poissonDisk[] = {
+		-0.6116678f, 0.04548655f, -0.26605980f, -0.6445347f,
+		-0.4798763f, 0.78557830f, -0.19723210f, -0.1348270f,
+		-0.7351842f, -0.58396650f, -0.35353550f, 0.3798947f,
+		0.1423388f, 0.39469180f, -0.01819171f, 0.8008046f,
+		0.3313283f, -0.04656135f, 0.58593510f, 0.4467109f,
+		0.8577477f, 0.11188750f, 0.03690137f, -0.9906120f,
+		0.4768903f, -0.84335800f, 0.13749180f, -0.4746810f,
+		0.7814927f, -0.48938420f, 0.38269190f, 0.8695006f };
+
+#define FRAG 
+
+	float size = (float)RESOLUTION;
+	const bool original = WILF_version == ORIGINAL_VERSION; //WILF ADDITION
+	const char *FIRST = original ? "../Shaders/AOshaders/oldUpsampleFirst" FRAG : "../Shaders/AOshaders/upsample" FRAG;
+	const char *MIDDLE = original ? "../Shaders/AOshaders/oldUpsampleMiddle" FRAG : "../Shaders/AOshaders/upsample" FRAG;
+	const char *LAST = original ? "../Shaders/AOshaders/oldUpsampleLast" FRAG : "../Shaders/AOshaders/upsample" FRAG;
+
+	for (int i = 0; i < LEVEL_COUNT; ++i, size /= 2.0f) {
+		const char *SHADER_NAME = i == 0 ? LAST : (i == LEVEL_COUNT - 1 ? FIRST : MIDDLE); //WILF MODIFICATION
+
+		Shader *shader = upsampleShader[i] = new Shader(SHADER_NAME);
+		shader->load();
+		aoProgram[i] = shader->handle();
+
+		shader->activate();
+		shader->setUniformTexture("posTex", 0);
+		shader->setUniformTexture("normTex", 1);
+
+		if (i < LEVEL_COUNT - 1 || LEVEL_COUNT == 1) {
+			shader->setUniformTexture("loResAOTex", 2);
+			shader->setUniformTexture("loResPosTex", 3);
+			shader->setUniformTexture("loResNormTex", 4);
+		}
+#if (DISABLE_TEMPORAL_BLENDING)
+#else
+		if (i == 0) {
+			shader->setUniformTexture("lastFrameAOTex", 5);
+			shader->setUniformTexture("lastFramePosTex", 6);
+			shader->setUniformMatrix4fv("projMat", projMat);
+			shader->setUniformMatrix4fv("iMVMat", iMVMat);
+			shader->setUniformMatrix4fv("mVMat", mVMat);
+		}
+#endif //DISABLE_TEMPORAL_BLENDING
+
+		shader->setUniformMatrix4fv("gluOrtho", gluOrtho[i]);
+		shader->setUniform1f("rMax", rMax);
+		ShaderSetting setting = computeShaderSetting(i); //WILF ADDITION
+		shader->setUniform1f("usePoisson", setting.usePoisson); //WILF ADDITION
+		shader->setUniform1f("useUpsampling", setting.useUpsampling); //WILF ADDITION
+		shader->setUniform1f("useTemporalSmoothing", setting.useTemporalSmoothing); //WILF ADDITION
+		shader->setUniform1f("resolution", size); //Referenced by temporal blending...//wilf fix
+#if (DISCARD_UNUSED_UNIFORMS)
+#else
+#define WILF_FUDGE 0.0*
+		shader->setUniform1f("dMax", WILF_FUDGE dMax);
+		float r = size * dMax / (2.0f * abs(tan(fov * PI / 180.0f / 2.0f)));
+		shader->setUniform1f("r", WILF_FUDGE r);
+		float angleInRadians = fov * PI / 180.0f; float fovFactor = 0.5 / tan(angleInRadians * 0.5); //WILF ADDITION 
+		shader->setUniform1f("fovFactor", WILF_FUDGE r); //WILF ADDITION
+		shader->setUniform1f("randRotTex", 7);
+		shader->setUniformfv("poissonDisk", 32, poissonDisk);
+#endif //DISCARD_UNUSED_UNIFORMS
+	}
+}
+
+//Setups the shader programs used in the AO blur steps.
+void SetupAOSharpenPrograms() {
+
+	for (int i = LEVEL_COUNT - 1; i >= 0; --i) {
+		//Compile many times just so that each one can have a different orthographics matrix...
+		Shader *shader = sharpenShader[i] = new Shader("../Shaders/AOshaders/sharpen");
+		shader->load();
+		aoSharpenProgram[i] = shader->handle();
+
+		shader->activate();
+		//Shader output color is called "A0"; 
+		shader->setUniformTexture("aoTex", 0);
+		shader->setUniformTexture("normTex", 1);
+		shader->setUniformTexture("posTex", 2);
+		shader->setUniformMatrix4fv("gluOrtho", gluOrtho[i]);
+	}
+}
+
+void Game::setupAO(){
+	SetupMRTBuildingShaders();
+	SetupDownsamplingShaders();
+	SetupUpsamplingShaders();
+	SetupAOSharpenPrograms();
 }
 
 void Game::wrapupAO(){
+	log("\nExiting...\n");
+	delete buildMRTTexturesShader;
+	for (long index = 0; index < LEVEL_COUNT; index++) {
+		delete downsampleShader[index];
+		delete upsampleShader[index];
+		delete sharpenShader[index];
+	}
 
+	#if (DISABLE_TEMPORAL_BLENDING)
+		//Eliminate last frames
+	#else
+		glDeleteTextures(1, &lastFrameAOTex);
+		glDeleteTextures(1, &lastFramePosTex);
+	#endif //DISABLE_TEMPORAL_BLENDING
+
+	#if (DISCARD_UNUSED_UNIFORMS) 
+	#else
+		for (int i = 0; i < LEVEL_COUNT; ++i) { delete[] randRot[i]; }
+	#endif //DISCARD_UNUSED_UNIFORMS
 }

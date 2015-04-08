@@ -34,7 +34,9 @@ class Shader {
 		void setUniform1i (const std::string &variable, long value);
 		void setUniformTexture (const std::string &variable, long textureUnit);		
 		void setUniformMatrix4fv (const std::string &variable, float *matrix);
-		
+		void setUniformfv(const std::string &variable, long howMany, float *value);
+
+
 		void load (const char *attributes [] = defaultAttributes, long attributesSize = 3);
 		void unload ();
 

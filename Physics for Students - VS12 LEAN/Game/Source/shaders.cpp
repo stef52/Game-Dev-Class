@@ -323,6 +323,11 @@ void Shader::setUniform4f (const std::string &variable, float value0, float valu
 	glUniform4f (glGetUniformLocation (privateProgramHandle, variable.c_str ()), value0, value1, value2, value3);
 }
 
+void Shader::setUniformfv(const std::string &variable, long howMany, float *value) {
+	if (isBroken) { return; }
+	glUniform1fv(glGetUniformLocation(privateProgramHandle, variable.c_str()), howMany, value);
+}
+
 void Shader::setUniform1i (const std::string &variable, long value) {
 	if (isBroken) {return;}
 	glUniform1i (glGetUniformLocation (privateProgramHandle, variable.c_str ()), value);
