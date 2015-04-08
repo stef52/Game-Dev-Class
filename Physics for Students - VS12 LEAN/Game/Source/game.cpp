@@ -126,6 +126,7 @@ void Game::setup () {
 
 	setupWater();
 
+	BuildOrthographicMatrices();
 	setupAO();
 }
 
@@ -550,6 +551,8 @@ float projMat[16]; // perspective projection matrix
 
 const float rMax = 7.0; // maximum screen-space sampling radius
 const float fov = 65.238f;
+const float zNear = 0.1f;
+const float zFar = 1000.0f;
 
 void SetupMRTBuildingShaders() {
 	Shader *shader = buildMRTTexturesShader = new Shader("../Shaders/AOshaders/buildMRTTextures");
@@ -671,7 +674,43 @@ void SetupAOSharpenPrograms() {
 	}
 }
 
+//Buffers and textures ([0] = highest resolution)
+GLuint frameBuffers[LEVEL_COUNT];
+GLuint depthBuffers[LEVEL_COUNT];
+GLuint posTex[LEVEL_COUNT];
+GLuint normTex[LEVEL_COUNT];
+GLuint aoTex[LEVEL_COUNT];
+GLuint aoTexSharpen[LEVEL_COUNT];
+
+
+//Check the FBO status.
+void checkActiveFrameBufferStatus() {
+	GLenum FBOstatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (FBOstatus == GL_FRAMEBUFFER_COMPLETE) return;
+	::halt("\nGL_FRAMEBUFFER_COMPLETE test failed, CANNOT use FBO.");
+}
+
+void SetupFBOs() {
+	buildRawFrameBuffers(LEVEL_COUNT, frameBuffers);
+	for (int i = 0, size = RESOLUTION; i < LEVEL_COUNT; i++, size /= 2) {
+		buildRawDepthBuffers(1, &depthBuffers[i], size, size);
+		buildRawTextures(1, &posTex[i], GL_TEXTURE_RECTANGLE, GL_RGBA32F, GL_RGBA, size, size, GL_NEAREST);
+		buildRawTextures(1, &normTex[i], GL_TEXTURE_RECTANGLE, GL_RGBA32F, GL_RGBA, size, size, GL_NEAREST);
+		buildRawTextures(1, &aoTex[i], GL_TEXTURE_RECTANGLE, GL_RGBA32F, GL_RGBA, size, size, GL_NEAREST);
+		buildRawTextures(1, &aoTexSharpen[i], GL_TEXTURE_RECTANGLE, GL_RGBA32F, GL_RGBA, size, size, GL_NEAREST);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffers[i]);
+		attachDepthTexture(depthBuffers[i]);
+		attachColorTexture(GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, posTex[i]); //, i);
+		attachColorTexture(GL_COLOR_ATTACHMENT1, GL_TEXTURE_RECTANGLE, normTex[i]); //, i);
+		attachColorTexture(GL_COLOR_ATTACHMENT2, GL_TEXTURE_RECTANGLE, aoTex[i]); //, i);
+		attachColorTexture(GL_COLOR_ATTACHMENT3, GL_TEXTURE_RECTANGLE, aoTexSharpen[i]); //, i);
+		checkActiveFrameBufferStatus();
+	}
+}
+
 void Game::setupAO(){
+	//SetupFBOs();
 	SetupMRTBuildingShaders();
 	SetupDownsamplingShaders();
 	SetupUpsamplingShaders();
@@ -698,4 +737,39 @@ void Game::wrapupAO(){
 	#else
 		for (int i = 0; i < LEVEL_COUNT; ++i) { delete[] randRot[i]; }
 	#endif //DISCARD_UNUSED_UNIFORMS
+}
+
+
+//Creates orthographic projection matrices.
+void Game::BuildOrthographicMatrices() {
+	int size = RESOLUTION;
+
+	for (int i = 0; i < LEVEL_COUNT; ++i) {
+		glPushMatrix();
+
+		glLoadIdentity();
+		gluOrtho2D(0, size, 0, size);
+
+		glGetFloatv(GL_MODELVIEW_MATRIX, gluOrtho[i]);
+
+		glPopMatrix();
+
+		size /= 2;
+	}
+
+	glPushMatrix();
+	glLoadIdentity();
+	gluPerspective(fov, (GLfloat)RESOLUTION / (GLfloat)RESOLUTION, zNear, zFar);
+	glGetFloatv(GL_MODELVIEW_MATRIX, projMat);
+	glPopMatrix();
+
+	glPushMatrix();
+	glLoadIdentity();
+	//camera.ApplyCameraTransform();
+#if (DISABLE_TEMPORAL_BLENDING) 
+#else
+	glGetFloatv(GL_MODELVIEW_MATRIX, mVMat);
+	M3DInvertMatrix44f(mVMat, iMVMat);
+#endif //DISABLE_TEMPORAL_BLENDING
+	glPopMatrix();
 }

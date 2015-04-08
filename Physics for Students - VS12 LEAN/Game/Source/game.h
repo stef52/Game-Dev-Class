@@ -46,7 +46,7 @@ public:
 
 	static void setupAO();
 	static void wrapupAO();
-
+	static void BuildOrthographicMatrices();
 
 private:
 	
