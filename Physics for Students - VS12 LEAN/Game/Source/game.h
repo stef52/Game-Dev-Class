@@ -6,7 +6,7 @@
 #define gameModule 
 
 extern double DT; //Elapsed time since previous tick/draw....
-enum Choice { NormalOnly, UseShadows, UseIndexedLights, UseShadowsAndIndexedLights, UseWater };
+enum Choice { NormalOnly, UseShadows, UseIndexedLights, UseShadowsAndIndexedLights, UseWater, AO };
 
 class Game {
 public:
@@ -48,6 +48,7 @@ public:
 	static void setupAO();
 	static void wrapupAO();
 	static void BuildOrthographicMatrices();
+	static void TickAO();
 
 private:
 	

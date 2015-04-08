@@ -9,10 +9,11 @@
 //                                        Game                                             //
 //*****************************************************************************************//
 
+#define RESOLUTION 800
 Game *game = NULL;
 double DT; 
 
-Choice choice = UseWater;
+Choice choice = AO;
 
 Shader *ShaderForWater = NULL;
 Texture *waterText = NULL,
@@ -28,6 +29,7 @@ lavaFlowID = 0;
 float ticks = 0;
 
 Shader *ShaderForAO = NULL;
+Shader *buildMRTTexturesShader = NULL;
 
 HDC Game::deviceContext; GLuint Game::fontBase;
 const bool useLights = false;
@@ -179,6 +181,7 @@ void Game::tick () {
 		tickColoredLights();
 	}
 	tickWater();
+	TickAO();
 }
 
 void Game::setupWater()
@@ -232,11 +235,25 @@ void Game::tickWater()
 	glBindTexture(GL_TEXTURE_CUBE_MAP, waterCubeMapID);
 	ShaderForWater->setUniformTexture("cubeMap", 19);
 
-
 	//ShaderForWater->setUniformTexture("cubeMap", 20);
 
-
 	glActiveTexture(GL_TEXTURE0);
+}
+
+//Glut's idle function.
+void Game::TickAO() {
+	glutPostRedisplay();
+
+	ticks += DT;
+	//set shader uniforms
+	buildMRTTexturesShader->activate();
+	buildMRTTexturesShader->setUniform1f("osg_FrameTime", ticks);
+	buildMRTTexturesShader->setUniformMatrix4fv("osg_ViewMatrixInverse", (float*)(&(camera->cameraMatrix)));
+
+	/*currentTime = glutGet(GLUT_ELAPSED_TIME);
+	elapsedTime = currentTime - previousTime;
+
+	MoveCamera();*/
 }
 
 void Game::drawTeapots () {
@@ -288,9 +305,9 @@ void Game::draw() {
 				world->draw();
 				tickWater();
 
-				if (!disableShaders)
+				if (!disableShaders){
 					ShaderForWater->activate();
-
+				}
 				Transformation trans = Transformation::lookAtForObject(Point(-70, -6, 0), Vector(0, -1, 0), Vector(0, 0, -1), Vector(1, 0, 0));
 				glPushMatrix();
 				glMultMatrixf(trans);
@@ -306,6 +323,27 @@ void Game::draw() {
 				glScaled(9, 9, 1);
 				unitSolidFace->draw();
 				glPopMatrix();
+			}
+			if (choice == AO){
+				
+				TickAO();
+				if (!disableShaders){
+					buildMRTTexturesShader->activate();
+				}
+				
+
+	glPushAttrib (GL_VIEWPORT_BIT);  
+		glViewport (0, 0, RESOLUTION, RESOLUTION);
+		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		world->draw();
+	glPopAttrib();  
+				
+
+				/*
+				glPushMatrix();
+				glScalef(scale, scale, scale);
+				glCallList(modelList);
+				glPopMatrix();*/
 			}
 			break;
 		case UseShadows:
@@ -500,7 +538,6 @@ void Game::wrapupShadowedLights()
 
 
 #define LEVEL_COUNT 1
-#define RESOLUTION 800
 #define ORIGINAL_VERSION 0
 #define WILF_VERSION 1
 #define DISABLE_TEMPORAL_BLENDING 1
@@ -511,7 +548,6 @@ void Game::wrapupShadowedLights()
 #define PI 3.14159265
 
 //Shaders...
-Shader *buildMRTTexturesShader;
 Shader *downsampleShader[LEVEL_COUNT];
 Shader *upsampleShader[LEVEL_COUNT];
 Shader *sharpenShader[LEVEL_COUNT];
