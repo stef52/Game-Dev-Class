@@ -21,7 +21,7 @@ void buildRawDepthBuffers (long howMany, GLuint *depthBufferIDs, long width, lon
 	::log ("\nBuild raw depth buffer %dx%d.", width, height);
 }
 
-void buildRawShadowMapDepthBuffer(long howMany, GLuint* textureIDs, long width, long height){
+void buildRawShadowMapDepthBuffer(long howMany, GLuint* textureIDs, long format, long width, long height){
 	glGenTextures(howMany, textureIDs);
 	GLenum kind = GL_TEXTURE_2D;
 	for (long index = 0; index < howMany; index++) {
@@ -117,6 +117,10 @@ void attachShadowMapDepthTexture(GLuint depthBufferID) {
 
 void attachColorTexture (long whichAttachment, long textureType, GLuint textureID) {
 	glFramebufferTexture2D (GL_FRAMEBUFFER, whichAttachment, textureType, textureID, 0);
+}
+
+void attachColorTexture(long whichAttachment, long textureType, GLuint textureID, long mipmap) {
+	glFramebufferTexture2D(GL_FRAMEBUFFER, whichAttachment, textureType, textureID, mipmap);
 }
 
 //Finally, when you use a frame buffer with a number of color buffer attachments, you

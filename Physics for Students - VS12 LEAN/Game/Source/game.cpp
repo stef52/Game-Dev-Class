@@ -14,8 +14,9 @@ Game *game = NULL;
 double DT; 
 
 Choice choice = AO;
-
+Transformation L_Inverse;
 Shader *ShaderForWater = NULL;
+Shader *shadowDrawShader = NULL;
 Texture *waterText = NULL,
 *waterColor = NULL,
 *waterFlow = NULL,
@@ -290,7 +291,7 @@ void Game::draw() {
 		switch (drawingChoice)
 		{
 		case NormalOnly:
-			world->draw();
+			//world->draw();
 
 			if (drawFuzzBallsInNormalDraw)
 			{
@@ -327,7 +328,7 @@ void Game::draw() {
 			}
 			if (choice == AO){
 				
-				TickAO();
+				//TickAO();
 				if (!disableShaders){
 					buildMRTTexturesShader->activate();
 				}
@@ -338,18 +339,35 @@ void Game::draw() {
 				glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 				world->draw();
 
-				glPushMatrix();
-				glScalef(scale, scale, scale);
-				//glCallList(modelList);
-				glPopMatrix();
-
-				glPopAttrib();  
+		
 				
 			}
 			break;
 		case UseShadows:
+			shadowDrawShader->activate();
+
+			if (shadowMapDepthBufferID == 0) {
+				setupShadows();
+			}
+
+			glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBufferID);
+			glPushMatrixf(L_Inverse);
+
+			glActiveTexture(GL_TEXTURE0);
+			DISABLE_SHADERS;
 			world->draw();
+			ENABLE_SHADERS;
+			glPopMatrix();
+
+			defaultShader->activate();
+
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, shadowMapDepthBufferID);
+			glActiveTexture(GL_TEXTURE0);
+			world->draw();
+
 			break;
+		
 		case UseIndexedLights:
 			drawColoredLights(world);
 			break;
@@ -498,16 +516,27 @@ void Game::drawHelp () {
 		drawMessage (1, screenHeight-320, "%s", "? - toggle help");
 	}
 }
-
-
-Shader *shadowDrawWhatLightSees = NULL;
+//Shader *shadowDrawWhatLightSees = NULL;
 
 void Game::setupShadows() {
-	shadowDrawWhatLightSees = new Shader("shadowDrawWhatLightSees");
-	shadowDrawWhatLightSees->load();
+	//Create and load the shader for drawing what the light sees...
+	shadowDrawShader = new Shader("ShadowShaders\\shadowDrawWhatLightSees");
+	shadowDrawShader->load();
+
+	shadowDrawShader->activate();
+	shadowDrawShader->setUniformTexture("Base", 0);
+	shadowDrawShader->setUniformTexture("ShadowMap", 1);
+	glDrawBuffer(GL_BACK);
+	glReadBuffer(GL_BACK);
 
 	buildRawFrameBuffers(1, &shadowMapFrameBufferID);
-	buildRawShadowMapDepthBuffer(1, &shadowMapDepthBufferID, screenWidth, screenHeight);
+	buildRawShadowMapDepthBuffer(1, &shadowMapDepthBufferID, GL_DEPTH_COMPONENT32F, screenWidth, screenHeight);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBufferID);
+	attachShadowMapDepthTexture(shadowMapDepthBufferID);
+
+	glDrawBuffers(0, NULL); //Use no color textures...
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 /*
 Shader *shadowDrawWhatLightSees = NULL;
@@ -528,12 +557,40 @@ void setupShadows(){
 
 void Game::tickShadowedLights()
 {
+	Point lightPositionCS;
+	Vector lightDirectionCS;
 
+	Transformation &C_Inverse = camera->inverseCameraMatrix;
+	Transformation &C = camera->cameraMatrix;
+	//up and alternate up may need to be changed
+	Transformation &L = Transformation::lookAtForObject(Point(-1, 50, 75), Vector(0, -1, 0), Vector(0, 1, 0), Vector(1, 0, 0));
+	L_Inverse = L.scaleFreeInverse();
+	Transformation projectionMatrix;
+	glGetMatrixf(GL_PROJECTION_MATRIX, projectionMatrix);
+
+	Transformation cameraSpaceToLPS = C * L_Inverse * projectionMatrix;
+
+	lightPositionCS = L.position() * C_Inverse;
+	lightDirectionCS = Vector(0.0, 0.0, -1.0).vectorTransformBy(L).vectorTransformBy(C_Inverse);
+
+	Point &P = lightPositionCS; Point &D = lightDirectionCS;
+
+	Shader *s = defaultShader;
+
+	s->activate();
+	s->setUniformMatrix4fv("cameraSpaceToLPS", (float *)&cameraSpaceToLPS);
+	s->setUniform3f("lightPositionCS", P.x, P.y, P.z);
+	s->setUniform3f("lightDirectionCS", D.x, D.y, D.z);
+	s->setUniformTexture("ShadowMap", 1);
 }
 
 void Game::wrapupShadowedLights()
 {
+	delete shadowDrawShader;
 
+	glDeleteFramebuffers(1, &shadowMapFrameBufferID);
+	glDeleteRenderbuffers(1, &shadowMapDepthBufferID);
+	glDeleteTextures(1, &shadowMapDepthBufferID);
 }
 
 
@@ -787,6 +844,7 @@ void Game::BuildOrthographicMatrices() {
 
 	glPushMatrix();
 	glLoadIdentity();
+	
 	//camera.ApplyCameraTransform();
 #if (DISABLE_TEMPORAL_BLENDING) 
 #else

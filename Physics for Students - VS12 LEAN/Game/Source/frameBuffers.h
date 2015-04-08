@@ -10,6 +10,7 @@ void buildRawTextures(long howMany, GLuint *textureIDs, long kind, long format, 
 void buildRawCubeMapFromFile(GLuint &textureID, const char *folder, const char *fileName);
 
 void attachDepthTexture(GLuint depthBufferID);
+void attachColorTexture(long whichAttachment, long textureType, GLuint textureID, long mipmap);
 void attachColorTexture(long whichAttachment, long textureType, GLuint textureID);
-void buildRawShadowMapDepthBuffer(long howMany, GLuint* textureIDs, long width, long height);
+void buildRawShadowMapDepthBuffer(long howMany, GLuint* textureIDs, long format, long width, long height);
 void attachShadowMapDepthTexture(GLuint depthBufferID);
